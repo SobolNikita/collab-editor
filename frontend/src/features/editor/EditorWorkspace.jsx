@@ -20,13 +20,24 @@ const sampleCodeByLanguage = {
 };
 
 export const EditorWorkspace = forwardRef(function EditorWorkspace(
-  { fileId, language, username, wsUrl, token, onStatusChange },
+  {
+    fileId,
+    roomCode: roomCodeProp,
+    language,
+    username,
+    wsUrl,
+    token,
+    onStatusChange,
+  },
   ref,
 ) {
   const [editorRef, setEditorRef] = useState(null);
   const [monacoRef, setMonacoRef] = useState(null);
   const [modelRef, setModelRef] = useState(null);
-  const roomName = useMemo(() => getRoomName(fileId), [fileId]);
+  const roomName = useMemo(
+    () => roomCodeProp ?? getRoomName(fileId),
+    [roomCodeProp, fileId],
+  );
 
   useImperativeHandle(
     ref,

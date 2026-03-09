@@ -7,7 +7,11 @@ import { RunOutputPanel } from "../components/editor/RunOutputPanel.jsx";
 import { StatusBar } from "../components/editor/StatusBar.jsx";
 import { EditorWorkspace } from "../features/editor/EditorWorkspace.jsx";
 import { getEnv } from "../app/env.js";
-import { getRoomParticipants } from "../shared/api/roomApi.js";
+import {
+  getRoomParticipants,
+  checkRoomAccess,
+  getRoomCode,
+} from "../shared/api/roomApi.js";
 
 const RUNNABLE_LANGUAGES = new Set([
   "javascript",
@@ -23,31 +27,70 @@ export function EditorPage() {
   const { user, token, logout: authLogout } = useAuth();
   const [language, setLanguage] = useState("javascript");
   const [status, setStatus] = useState({
-    roomName: `room:file:${fileId}`,
     connectionStatus: "connecting",
     isSynced: false,
   });
+  const [roomCode, setRoomCode] = useState(null);
   const [runOutput, setRunOutput] = useState("");
   const [runError, setRunError] = useState("");
   const [runLoading, setRunLoading] = useState(false);
   const [runPanelOpen, setRunPanelOpen] = useState(false);
   const [participants, setParticipants] = useState([]);
+  const [accessStatus, setAccessStatus] = useState("pending"); // pending | allowed | denied
 
   const workspaceRef = useRef(null);
   const env = useMemo(() => getEnv(), []);
 
-  const roomCode = status.roomName;
+  useEffect(() => {
+    if (!env.apiUrl || !token) {
+      setRoomCode("Untitled");
+      return;
+    }
+    let cancelled = false;
+    getRoomCode(fileId)
+      .then((data) => {
+        if (cancelled) return;
+        setRoomCode(data.roomCode ?? "Untitled");
+      })
+      .catch(() => {
+        if (!cancelled) setRoomCode("Untitled");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fileId, env.apiUrl, token]);
 
   useEffect(() => {
-    if (!roomCode || !env.apiUrl || !token) {
+    if (roomCode === null) return;
+    if (
+      !roomCode ||
+      roomCode === "Untitled" ||
+      !env.apiUrl ||
+      !token ||
+      !user?.id
+    ) {
+      setAccessStatus("denied");
+      return;
+    }
+    let cancelled = false;
+    checkRoomAccess(roomCode, user.id).then((allowed) => {
+      if (!cancelled) setAccessStatus(allowed ? "allowed" : "denied");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [roomCode, env.apiUrl, token, user?.id]);
+
+  useEffect(() => {
+    if (!roomCode || roomCode === "Untitled" || !env.apiUrl || !token) {
       setParticipants([]);
       return;
     }
     let cancelled = false;
     getRoomParticipants(roomCode)
-      .then((data) => {
+      .then(({ participants: list }) => {
         if (cancelled) return;
-        setParticipants(data.participants ?? data ?? []);
+        setParticipants(list ?? []);
       })
       .catch(() => {
         if (!cancelled) setParticipants([]);
@@ -58,14 +101,21 @@ export function EditorPage() {
   }, [roomCode, env.apiUrl, token]);
 
   useEffect(() => {
-    if (!roomCode || !env.apiUrl || !token) return;
+    if (
+      !roomCode ||
+      roomCode === "Untitled" ||
+      !env.apiUrl ||
+      !token ||
+      accessStatus !== "allowed"
+    )
+      return;
     const id = setInterval(() => {
       getRoomParticipants(roomCode)
-        .then((data) => setParticipants(data.participants ?? data ?? []))
+        .then(({ participants: list }) => setParticipants(list ?? []))
         .catch(() => {});
     }, 5000);
     return () => clearInterval(id);
-  }, [roomCode, env.apiUrl, token]);
+  }, [roomCode, env.apiUrl, token, accessStatus]);
 
   const handleStatusChange = useCallback((nextStatus) => {
     setStatus(nextStatus);
@@ -117,10 +167,33 @@ export function EditorPage() {
     }
   }, [env.apiUrl, language, token]);
 
+  useEffect(() => {
+    if (accessStatus === "denied") {
+      navigate("/", { replace: true });
+    }
+  }, [accessStatus, navigate]);
+
+  if (accessStatus === "pending") {
+    return (
+      <div className="flex h-screen w-screen flex-col items-center justify-center bg-surface text-slate-100">
+        <p className="text-slate-400">
+          {roomCode === null
+            ? "Загрузка комнаты…"
+            : "Проверка доступа к комнате…"}
+        </p>
+      </div>
+    );
+  }
+
+  if (accessStatus === "denied") {
+    return null;
+  }
+
   return (
     <div className="flex h-screen w-screen flex-col bg-surface text-slate-100">
       <Toolbar
         fileId={fileId}
+        roomCode={roomCode}
         language={language}
         onLanguageChange={setLanguage}
         userDisplayName={user?.name ?? user?.email ?? "User"}
@@ -135,6 +208,7 @@ export function EditorPage() {
             <EditorWorkspace
               ref={workspaceRef}
               fileId={fileId}
+              roomCode={roomCode}
               language={language}
               username={user?.name ?? user?.email ?? "User"}
               wsUrl={env.wsUrl}
@@ -160,7 +234,7 @@ export function EditorPage() {
       <StatusBar
         connectionStatus={status.connectionStatus}
         isSynced={status.isSynced}
-        roomName={status.roomName}
+        roomName={roomCode}
       />
     </div>
   );
