@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../app/authContext.js";
 import { Toolbar } from "../components/editor/Toolbar.jsx";
@@ -7,11 +7,18 @@ import { RunOutputPanel } from "../components/editor/RunOutputPanel.jsx";
 import { StatusBar } from "../components/editor/StatusBar.jsx";
 import { EditorWorkspace } from "../features/editor/EditorWorkspace.jsx";
 import { getEnv } from "../app/env.js";
+import { getRoomParticipants } from "../shared/api/roomApi.js";
 
-const RUNNABLE_LANGUAGES = new Set(["javascript", "typescript", "python", "go", "cpp"]);
+const RUNNABLE_LANGUAGES = new Set([
+  "javascript",
+  "typescript",
+  "python",
+  "go",
+  "cpp",
+]);
 
 export function EditorPage() {
-  const { fileId = "demo-file" } = useParams();
+  const { fileId = "0" } = useParams();
   const navigate = useNavigate();
   const { user, token, logout: authLogout } = useAuth();
   const [language, setLanguage] = useState("javascript");
@@ -19,15 +26,46 @@ export function EditorPage() {
     roomName: `room:file:${fileId}`,
     connectionStatus: "connecting",
     isSynced: false,
-    participants: [],
   });
   const [runOutput, setRunOutput] = useState("");
   const [runError, setRunError] = useState("");
   const [runLoading, setRunLoading] = useState(false);
   const [runPanelOpen, setRunPanelOpen] = useState(false);
+  const [participants, setParticipants] = useState([]);
 
   const workspaceRef = useRef(null);
   const env = useMemo(() => getEnv(), []);
+
+  const roomCode = status.roomName;
+
+  useEffect(() => {
+    if (!roomCode || !env.apiUrl || !token) {
+      setParticipants([]);
+      return;
+    }
+    let cancelled = false;
+    getRoomParticipants(roomCode)
+      .then((data) => {
+        if (cancelled) return;
+        setParticipants(data.participants ?? data ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setParticipants([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [roomCode, env.apiUrl, token]);
+
+  useEffect(() => {
+    if (!roomCode || !env.apiUrl || !token) return;
+    const id = setInterval(() => {
+      getRoomParticipants(roomCode)
+        .then((data) => setParticipants(data.participants ?? data ?? []))
+        .catch(() => {});
+    }, 5000);
+    return () => clearInterval(id);
+  }, [roomCode, env.apiUrl, token]);
 
   const handleStatusChange = useCallback((nextStatus) => {
     setStatus(nextStatus);
@@ -68,7 +106,8 @@ export function EditorPage() {
         setRunError(data.error || `HTTP ${res.status}`);
         return;
       }
-      const out = [data.stdout, data.stderr].filter(Boolean).join("\n") || "(no output)";
+      const out =
+        [data.stdout, data.stderr].filter(Boolean).join("\n") || "(no output)";
       setRunOutput(out);
       if (data.error) setRunError(data.error);
     } catch (err) {
@@ -112,7 +151,10 @@ export function EditorPage() {
             />
           )}
         </section>
-        <ParticipantsPanel participants={status.participants} />
+        <ParticipantsPanel
+          participants={participants}
+          currentUserId={user?.id}
+        />
       </main>
 
       <StatusBar

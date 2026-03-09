@@ -55,7 +55,12 @@ export function useCollabSession({
     const awareness = provider.awareness;
     awareness.setLocalStateField("user", userMeta);
 
-    const binding = new MonacoBinding(yText, model, new Set([editor]), awareness);
+    const binding = new MonacoBinding(
+      yText,
+      model,
+      new Set([editor]),
+      awareness,
+    );
 
     const onStatus = ({ status }) => {
       if (status === "connected") {
@@ -85,6 +90,41 @@ export function useCollabSession({
     awareness.on("change", onAwarenessChange);
     onAwarenessChange();
 
+    const styleId = "y-remote-cursors";
+    const updateCursorStyles = () => {
+      const states = awareness.getStates();
+      const existing = document.getElementById(styleId);
+      if (existing) existing.remove();
+      const sheet = document.createElement("style");
+      sheet.id = styleId;
+      states.forEach((state, clientId) => {
+        const color = state.user?.color ?? "#94a3b8";
+        sheet.textContent += `
+        .yRemoteSelection-${clientId} { background-color: ${color}40; }
+        .yRemoteSelectionHead-${clientId} {
+          position: absolute;
+          border-left: 2px solid ${color};
+          border-top: 2px solid ${color};
+          border-bottom: 2px solid ${color};
+          height: 100%;
+          box-sizing: border-box;
+        }
+        .yRemoteSelectionHead-${clientId}::after {
+          position: absolute;
+          content: " ";
+          border: 2px solid ${color};
+          border-radius: 2px;
+          left: -3px;
+          top: -4px;
+          background: ${color};
+        }
+        `;
+      });
+      document.head.appendChild(sheet);
+    };
+    awareness.on("change", updateCursorStyles);
+    updateCursorStyles();
+
     let typingTimer;
     const contentListener = editor.onDidChangeModelContent(() => {
       awareness.setLocalStateField("user", { ...userMeta, isTyping: true });
@@ -98,6 +138,9 @@ export function useCollabSession({
       window.clearTimeout(typingTimer);
       contentListener.dispose();
       awareness.off("change", onAwarenessChange);
+      awareness.off("change", updateCursorStyles);
+      const styleEl = document.getElementById(styleId);
+      if (styleEl) styleEl.remove();
       provider.off("status", onStatus);
       provider.off("sync", onSynced);
       binding.destroy();

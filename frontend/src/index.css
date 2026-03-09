@@ -18,3 +18,26 @@ body,
 body {
   margin: 0;
 }
+
+.yRemoteSelection {
+  background-color: rgba(34, 197, 94, 0.35);
+}
+
+.yRemoteSelectionHead {
+  position: absolute;
+  border-left: 2px solid rgb(34, 197, 94);
+  border-top: 2px solid rgb(34, 197, 94);
+  border-bottom: 2px solid rgb(34, 197, 94);
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.yRemoteSelectionHead::after {
+  position: absolute;
+  content: " ";
+  border: 2px solid rgb(34, 197, 94);
+  border-radius: 2px;
+  left: -3px;
+  top: -4px;
+  background: rgb(34, 197, 94);
+}

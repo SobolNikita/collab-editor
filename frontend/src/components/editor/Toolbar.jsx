@@ -1,3 +1,6 @@
+import { isOwner } from "../../shared/api/permissions.js";
+import { useState, useEffect} from "react";
+
 const languages = ["javascript", "typescript", "python", "go", "cpp", "json"];
 
 export function Toolbar({
@@ -9,6 +12,33 @@ export function Toolbar({
   onRun,
   runLoading,
 }) {
+
+  const [isRoomOwner, setIsRoomOwner] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkOwner() {
+      try {
+        const result = await isOwner(fileId);
+        if (isMounted) {
+          setIsRoomOwner(result);
+        }
+      } catch (error) {
+        console.error("Error while checking permissions:", error);
+        if (isMounted) setIsRoomOwner(false);
+      }
+    }
+
+    if (fileId) {
+      checkOwner();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fileId]);
+
   return (
     <header className="flex items-center justify-between border-b border-border bg-panel px-4 py-3">
       <div className="flex items-center gap-3">
@@ -23,8 +53,7 @@ export function Toolbar({
             type="button"
             onClick={onRun}
             disabled={runLoading}
-            className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-          >
+            className="rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50">
             {runLoading ? "Running…" : "Run"}
           </button>
         ) : null}
@@ -37,7 +66,7 @@ export function Toolbar({
             className="ml-2 rounded border border-border bg-slate-800 px-2 py-1 text-xs text-slate-100"
             value={language}
             onChange={(event) => onLanguageChange(event.target.value)}
-          >
+            disabled={!isRoomOwner}>
             {languages.map((item) => (
               <option key={item} value={item}>
                 {item}
@@ -46,15 +75,12 @@ export function Toolbar({
           </select>
         </label>
 
-        <span className="text-xs text-slate-400">
-          {userDisplayName}
-        </span>
+        <span className="text-xs text-slate-400">{userDisplayName}</span>
         {onLogout ? (
           <button
             type="button"
             onClick={onLogout}
-            className="rounded border border-border bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700"
-          >
+            className="rounded border border-border bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700">
             Log out
           </button>
         ) : null}
