@@ -7,7 +7,7 @@ export function HomePage() {
   const navigate = useNavigate();
   const { user, logout, token } = useAuth();
   const env = useMemo(() => getEnv(), []);
-  const [roomIdInput, setRoomIdInput] = useState("");
+  const [roomCodeInput, setRoomCodeInput] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState("");
   const [joinError, setJoinError] = useState("");
@@ -49,24 +49,30 @@ export function HomePage() {
   const handleJoinRoom = async (e) => {
     e.preventDefault();
     setJoinError("");
-    const id = roomIdInput.trim();
-    if (!id) return;
+    const code = roomCodeInput.trim();
+    if (!code) return;
     if (!env.apiUrl || !token) {
       setJoinError("Бэкенд не настроен или нет авторизации.");
       return;
     }
     try {
       const res = await fetch(
-        `${env.apiUrl.replace(/\/$/, "")}/api/files/${encodeURIComponent(id)}`,
+        `${env.apiUrl.replace(/\/$/, "")}/api/files/by-code/${encodeURIComponent(code)}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
       );
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setJoinError(res.status === 404 ? "Комната не найдена." : "Нет доступа или ошибка сервера.");
+        setJoinError(res.status === 404 ? "Файл не найден." : data.error || "Нет доступа или ошибка сервера.");
         return;
       }
-      navigate(`/editor/${encodeURIComponent(id)}`);
+      const id = data.id ?? data.file_id;
+      if (!id) {
+        setJoinError("Сервер не вернул ID файла.");
+        return;
+      }
+      navigate(`/editor/${encodeURIComponent(String(id))}`);
     } catch (err) {
       setJoinError(err.message || "Не удалось присоединиться.");
     }
@@ -113,16 +119,17 @@ export function HomePage() {
             )}
             <input
               type="text"
-              value={roomIdInput}
-              onChange={(e) => setRoomIdInput(e.target.value)}
-              placeholder="ID комнаты"
+              value={roomCodeInput}
+              onChange={(e) => setRoomCodeInput(e.target.value)}
+              placeholder="Код подключения (6 символов)"
+              maxLength={6}
               className="rounded border border-border bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500"
             />
             <button
               type="submit"
               className="w-full rounded border border-border bg-slate-700 py-3 text-sm font-medium text-slate-200 hover:bg-slate-600"
             >
-              Присоединиться к комнате
+              Присоединиться по коду
             </button>
           </form>
         </div>
