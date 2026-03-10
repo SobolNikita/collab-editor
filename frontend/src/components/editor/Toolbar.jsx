@@ -4,7 +4,7 @@ import { useState, useEffect} from "react";
 const languages = ["javascript", "typescript", "python", "go", "cpp", "json"];
 
 export function Toolbar({
-  fileId,
+  roomCode,
   language,
   onLanguageChange,
   userDisplayName,
@@ -20,7 +20,7 @@ export function Toolbar({
 
     async function checkOwner() {
       try {
-        const result = await isOwner(fileId);
+        const result = await isOwner(roomCode);
         if (isMounted) {
           setIsRoomOwner(result);
         }
@@ -30,14 +30,14 @@ export function Toolbar({
       }
     }
 
-    if (fileId) {
+    if (roomCode) {
       checkOwner();
     }
 
     return () => {
       isMounted = false;
     };
-  }, [fileId]);
+  }, [roomCode]);
 
   return (
     <header className="flex items-center justify-between border-b border-border bg-panel px-4 py-3">
@@ -46,7 +46,7 @@ export function Toolbar({
           Collab Editor
         </h1>
         <span className="rounded bg-slate-700 px-2 py-1 text-xs text-slate-100">
-          file: {fileId}
+          комната: {roomCode}
         </span>
         {onRun ? (
           <button

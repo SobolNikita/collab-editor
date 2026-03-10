@@ -29,7 +29,7 @@ export const router = createBrowserRouter([
     element: <AuthCallbackPage />,
   },
   {
-    path: "/editor/:fileId",
+    path: "/editor/:shortCode",
     element: (
       <ProtectedRoute>
         <EditorPage />

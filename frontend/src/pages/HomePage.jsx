@@ -33,12 +33,12 @@ export function HomePage() {
         setCreateError(data.error || `Ошибка ${res.status}`);
         return;
       }
-      const id = data.id ?? data.file_id;
-      if (!id) {
-        setCreateError("Сервер не вернул ID комнаты.");
+      const shortCode = data.shortCode ?? data.short_code;
+      if (!shortCode) {
+        setCreateError("Сервер не вернул код комнаты.");
         return;
       }
-      navigate(`/editor/${encodeURIComponent(String(id))}`);
+      navigate(`/editor/${encodeURIComponent(shortCode)}`);
     } catch (err) {
       setCreateError(err.message || "Не удалось создать комнату.");
     } finally {
@@ -67,12 +67,8 @@ export function HomePage() {
         setJoinError(res.status === 404 ? "Файл не найден." : data.error || "Нет доступа или ошибка сервера.");
         return;
       }
-      const id = data.id ?? data.file_id;
-      if (!id) {
-        setJoinError("Сервер не вернул ID файла.");
-        return;
-      }
-      navigate(`/editor/${encodeURIComponent(String(id))}`);
+      const shortCode = data.shortCode ?? data.short_code ?? code;
+      navigate(`/editor/${encodeURIComponent(shortCode)}`);
     } catch (err) {
       setJoinError(err.message || "Не удалось присоединиться.");
     }

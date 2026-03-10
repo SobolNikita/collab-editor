@@ -2,12 +2,10 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
-  useMemo,
   useState,
 } from "react";
 import Editor from "@monaco-editor/react";
 import { useCollabSession } from "./collab/useCollabSession.js";
-import { getRoomName } from "../../shared/api/contracts.js";
 
 const sampleCodeByLanguage = {
   javascript: "function hello() {\n  return 'Hello collaborative world';\n}\n",
@@ -21,7 +19,6 @@ const sampleCodeByLanguage = {
 
 export const EditorWorkspace = forwardRef(function EditorWorkspace(
   {
-    fileId,
     roomCode: roomCodeProp,
     language,
     username,
@@ -34,10 +31,7 @@ export const EditorWorkspace = forwardRef(function EditorWorkspace(
   const [editorRef, setEditorRef] = useState(null);
   const [monacoRef, setMonacoRef] = useState(null);
   const [modelRef, setModelRef] = useState(null);
-  const roomName = useMemo(
-    () => roomCodeProp ?? getRoomName(fileId),
-    [roomCodeProp, fileId],
-  );
+  const roomName = roomCodeProp ?? "";
 
   useImperativeHandle(
     ref,

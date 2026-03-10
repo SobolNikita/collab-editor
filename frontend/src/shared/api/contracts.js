@@ -1,5 +1,5 @@
 export const wsContracts = {
-  roomFormat: "room:file:<fileId>",
+  roomFormat: "room by shortCode",
   auth: {
     headers: ["Authorization: Bearer <token>"],
     query: ["token=<jwt> (fallback)"],
@@ -12,6 +12,6 @@ export const wsContracts = {
   },
 };
 
-export function getRoomName(fileId) {
-  return `room:file:${fileId}`;
+export function getRoomName(shortCode) {
+  return shortCode ?? "";
 }

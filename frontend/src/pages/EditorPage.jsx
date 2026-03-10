@@ -10,7 +10,6 @@ import { getEnv } from "../app/env.js";
 import {
   getRoomParticipants,
   checkRoomAccess,
-  getRoomCode,
 } from "../shared/api/roomApi.js";
 
 const RUNNABLE_LANGUAGES = new Set([
@@ -22,7 +21,7 @@ const RUNNABLE_LANGUAGES = new Set([
 ]);
 
 export function EditorPage() {
-  const { fileId = "0" } = useParams();
+  const { shortCode: shortCodeParam = "" } = useParams();
   const navigate = useNavigate();
   const { user, token, logout: authLogout } = useAuth();
   const [language, setLanguage] = useState("javascript");
@@ -30,7 +29,7 @@ export function EditorPage() {
     connectionStatus: "connecting",
     isSynced: false,
   });
-  const [roomCode, setRoomCode] = useState(null);
+  const roomCode = shortCodeParam.trim() || null;
   const [runOutput, setRunOutput] = useState("");
   const [runError, setRunError] = useState("");
   const [runLoading, setRunLoading] = useState(false);
@@ -42,33 +41,7 @@ export function EditorPage() {
   const env = useMemo(() => getEnv(), []);
 
   useEffect(() => {
-    if (!env.apiUrl || !token) {
-      setRoomCode("Untitled");
-      return;
-    }
-    let cancelled = false;
-    getRoomCode(fileId)
-      .then((data) => {
-        if (cancelled) return;
-        setRoomCode(data.roomCode ?? "Untitled");
-      })
-      .catch(() => {
-        if (!cancelled) setRoomCode("Untitled");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [fileId, env.apiUrl, token]);
-
-  useEffect(() => {
-    if (roomCode === null) return;
-    if (
-      !roomCode ||
-      roomCode === "Untitled" ||
-      !env.apiUrl ||
-      !token ||
-      !user?.id
-    ) {
+    if (!roomCode || !env.apiUrl || !token || !user?.id) {
       setAccessStatus("denied");
       return;
     }
@@ -82,7 +55,7 @@ export function EditorPage() {
   }, [roomCode, env.apiUrl, token, user?.id]);
 
   useEffect(() => {
-    if (!roomCode || roomCode === "Untitled" || !env.apiUrl || !token) {
+    if (!roomCode || !env.apiUrl || !token) {
       setParticipants([]);
       return;
     }
@@ -103,7 +76,6 @@ export function EditorPage() {
   useEffect(() => {
     if (
       !roomCode ||
-      roomCode === "Untitled" ||
       !env.apiUrl ||
       !token ||
       accessStatus !== "allowed"
@@ -177,9 +149,7 @@ export function EditorPage() {
     return (
       <div className="flex h-screen w-screen flex-col items-center justify-center bg-surface text-slate-100">
         <p className="text-slate-400">
-          {roomCode === null
-            ? "Загрузка комнаты…"
-            : "Проверка доступа к комнате…"}
+          {!roomCode ? "Некорректная ссылка на комнату." : "Проверка доступа к комнате…"}
         </p>
       </div>
     );
@@ -192,7 +162,6 @@ export function EditorPage() {
   return (
     <div className="flex h-screen w-screen flex-col bg-surface text-slate-100">
       <Toolbar
-        fileId={fileId}
         roomCode={roomCode}
         language={language}
         onLanguageChange={setLanguage}
@@ -207,7 +176,6 @@ export function EditorPage() {
           <div className="min-h-0 flex-1">
             <EditorWorkspace
               ref={workspaceRef}
-              fileId={fileId}
               roomCode={roomCode}
               language={language}
               username={user?.name ?? user?.email ?? "User"}
