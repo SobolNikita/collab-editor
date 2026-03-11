@@ -80,28 +80,3 @@ export async function isOwner(roomId) {
     return false;
   }
 }
-
-export async function getRoomCode(fileId) {
-  const env = getEnv();
-  const auth = getStoredAuth();
-  if (!env.apiUrl || !auth?.token) return { roomCode: null };
-
-  const base = env.apiUrl.replace(/\/$/, "");
-  const url = `${base}/api/files/${encodeURIComponent(fileId)}/room`;
-  try {
-    const res = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${auth.token}`,
-      },
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) return { roomCode: null };
-    const code = data.roomCode ?? data.room_code ?? data.key ?? null;
-    return { roomCode: code };
-  } catch (err) {
-    console.error("Error getting room code:", err);
-    return { roomCode: null };
-  }
-}
