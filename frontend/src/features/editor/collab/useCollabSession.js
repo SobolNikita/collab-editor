@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { MonacoBinding } from "y-monaco";
@@ -25,11 +25,24 @@ export function useCollabSession({
   model,
   username,
   token = "",
+  defaultText = "",
+  language,
+  onLanguageChangeFromCollab,
+  isRoomOwner = false,
+  myColorFromApi = null,
 }) {
   const [connectionStatus, setConnectionStatus] = useState("connecting");
   const [isSynced, setIsSynced] = useState(false);
   const [participants, setParticipants] = useState([]);
-  const [userColor] = useState(() => randomColor());
+  const [fallbackColor] = useState(() => randomColor());
+  const userColor = myColorFromApi || fallbackColor;
+  const yTextRef = useRef(null);
+  const setSharedLanguageRef = useRef(null);
+  const awarenessRef = useRef(null);
+  const languageRef = useRef(language);
+  const onLanguageChangeFromCollabRef = useRef(onLanguageChangeFromCollab);
+  languageRef.current = language;
+  onLanguageChangeFromCollabRef.current = onLanguageChangeFromCollab;
 
   const userMeta = useMemo(
     () => ({
@@ -39,6 +52,8 @@ export function useCollabSession({
     }),
     [username, userColor],
   );
+  const userMetaRef = useRef(userMeta);
+  userMetaRef.current = userMeta;
 
   useEffect(() => {
     if (!monaco || !editor || !model || !wsUrl || !roomName) {
@@ -52,8 +67,26 @@ export function useCollabSession({
       params: token ? { token } : undefined,
     });
 
+    const yMeta = ydoc.getMap("meta");
+    const observer = () => {
+      const newLanguage = yMeta.get("language");
+      if (typeof newLanguage === "string") {
+        onLanguageChangeFromCollabRef.current?.(newLanguage);
+      }
+    };
+    yMeta.observe(observer);
+    const setSharedLanguage = (lang) => {
+      if (typeof lang === "string") yMeta.set("language", lang);
+    };
+    setSharedLanguageRef.current = setSharedLanguage;
+
     const awareness = provider.awareness;
-    awareness.setLocalStateField("user", userMeta);
+    awarenessRef.current = awareness;
+    awareness.setLocalStateField("user", userMetaRef.current);
+
+    model.setEOL(monaco.editor.EndOfLineSequence.LF);
+
+    yTextRef.current = yText;
 
     const binding = new MonacoBinding(
       yText,
@@ -79,6 +112,19 @@ export function useCollabSession({
       setConnectionStatus((prev) =>
         prev === "connected" && !synced ? "reconnecting" : prev,
       );
+      if (synced && yText.length === 0 && defaultText) {
+        yText.insert(0, defaultText);
+      }
+      if (
+        synced &&
+        !yMeta.get("language") &&
+        typeof languageRef.current === "string"
+      ) {
+        yMeta.set("language", languageRef.current);
+      }
+      if (synced && typeof yMeta.get("language") === "string") {
+        onLanguageChangeFromCollabRef.current?.(yMeta.get("language"));
+      }
     };
 
     const onAwarenessChange = () => {
@@ -127,15 +173,17 @@ export function useCollabSession({
 
     let typingTimer;
     const contentListener = editor.onDidChangeModelContent(() => {
-      awareness.setLocalStateField("user", { ...userMeta, isTyping: true });
+      awareness.setLocalStateField("user", { ...userMetaRef.current, isTyping: true });
       window.clearTimeout(typingTimer);
       typingTimer = window.setTimeout(() => {
-        awareness.setLocalStateField("user", { ...userMeta, isTyping: false });
+        awareness.setLocalStateField("user", { ...userMetaRef.current, isTyping: false });
       }, 700);
     });
 
     return () => {
       window.clearTimeout(typingTimer);
+      awarenessRef.current = null;
+      yMeta.unobserve(observer);
       contentListener.dispose();
       awareness.off("change", onAwarenessChange);
       awareness.off("change", updateCursorStyles);
@@ -146,15 +194,34 @@ export function useCollabSession({
       binding.destroy();
       provider.destroy();
       ydoc.destroy();
+      yTextRef.current = null;
+      setSharedLanguageRef.current = null;
       setIsSynced(false);
       setParticipants([]);
       setConnectionStatus("offline");
     };
-  }, [editor, model, monaco, roomName, token, userMeta, wsUrl]);
+  }, [editor, model, monaco, roomName, token, wsUrl]);
+
+  useEffect(() => {
+    awarenessRef.current?.setLocalStateField("user", userMeta);
+  }, [userMeta]);
+
+  useEffect(() => {
+    if (!isRoomOwner || !yTextRef.current || !defaultText) return;
+    const yText = yTextRef.current;
+    const len = yText.length;
+    if (len > 0) yText.delete(0, len);
+    yText.insert(0, defaultText);
+  }, [defaultText, isRoomOwner]);
+
+  const setSharedLanguage = (lang) => {
+    setSharedLanguageRef.current?.(lang);
+  };
 
   return {
     connectionStatus,
     isSynced,
     participants,
+    setSharedLanguage,
   };
 }

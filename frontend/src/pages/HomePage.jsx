@@ -1,7 +1,10 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../app/authContext.js";
 import { getEnv } from "../app/env.js";
+import { getMyRooms, deleteRoom } from "../shared/api/roomApi.js";
+
+const ROOMS_PER_PAGE = 8;
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -11,6 +14,36 @@ export function HomePage() {
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState("");
   const [joinError, setJoinError] = useState("");
+  const [rooms, setRooms] = useState([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [roomsError, setRoomsError] = useState("");
+  const [deletingCode, setDeletingCode] = useState(null);
+  const [roomsPage, setRoomsPage] = useState(1);
+
+  const loadRooms = useCallback(async () => {
+    if (!env.apiUrl || !token) {
+      setRooms([]);
+      setRoomsLoading(false);
+      return;
+    }
+    setRoomsLoading(true);
+    setRoomsError("");
+    const { rooms: list, ok, error } = await getMyRooms(token);
+    setRooms(list ?? []);
+    if (!ok) setRoomsError(error || "Не удалось загрузить список комнат");
+    setRoomsLoading(false);
+    setRoomsPage(1);
+  }, [env.apiUrl, token]);
+
+  useEffect(() => {
+    loadRooms();
+  }, [loadRooms]);
+
+  const totalPages = Math.max(1, Math.ceil(rooms.length / ROOMS_PER_PAGE));
+  const paginatedRooms = useMemo(() => {
+    const start = (roomsPage - 1) * ROOMS_PER_PAGE;
+    return rooms.slice(start, start + ROOMS_PER_PAGE);
+  }, [rooms, roomsPage]);
 
   const handleCreateRoom = async () => {
     setCreateError("");
@@ -64,7 +97,11 @@ export function HomePage() {
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setJoinError(res.status === 404 ? "Файл не найден." : data.error || "Нет доступа или ошибка сервера.");
+        setJoinError(
+          res.status === 404
+            ? "Файл не найден."
+            : data.error || "Нет доступа или ошибка сервера.",
+        );
         return;
       }
       const shortCode = data.shortCode ?? data.short_code ?? code;
@@ -74,62 +111,270 @@ export function HomePage() {
     }
   };
 
+  const handleDeleteRoom = async (shortCode, title) => {
+    if (
+      !window.confirm(
+        `Удалить комнату «${title || shortCode}»? Это действие нельзя отменить.`,
+      )
+    )
+      return;
+    setDeletingCode(shortCode);
+    const { ok, error } = await deleteRoom(shortCode);
+    setDeletingCode(null);
+    if (ok) {
+      setRooms((prev) =>
+        prev.filter((r) => (r.shortCode ?? r.short_code) !== shortCode),
+      );
+    } else {
+      setRoomsError(error || "Не удалось удалить комнату");
+    }
+  };
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-surface px-4">
-      <div className="mb-6 flex w-full max-w-sm items-center justify-between">
-        <span className="text-sm text-slate-400">{user?.name ?? user?.email}</span>
-        <button
-          type="button"
-          onClick={() => {
-            logout();
-            navigate("/login");
-          }}
-          className="text-sm text-slate-400 underline hover:text-slate-200"
-        >
-          Выйти
-        </button>
-      </div>
-      <div className="w-full max-w-sm rounded-lg border border-border bg-panel p-6 shadow-lg">
-        <h1 className="mb-6 text-center text-lg font-semibold text-slate-100">
-          Collab Editor
-        </h1>
-        <div className="space-y-4">
-          {createError && (
-            <p className="rounded bg-red-900/50 px-3 py-2 text-sm text-red-300">
-              {createError}
+    <div className="min-h-screen bg-surface">
+      {/* Header */}
+      <header className="sticky top-0 z-10 border-b border-border bg-panel/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
+          <h1 className="text-xl font-semibold tracking-tight text-slate-100">
+            Collab Editor
+          </h1>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-slate-400">
+              {user?.name ?? user?.email}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                logout();
+                navigate("/login");
+              }}
+              className="rounded-lg border border-border bg-slate-800/80 px-3 py-1.5 text-sm text-slate-300 transition hover:bg-slate-700 hover:text-slate-100"
+            >
+              Выйти
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-4xl px-4 py-8">
+        {/* Actions card */}
+        <section className="mb-10 rounded-2xl border border-border bg-panel p-6 shadow-xl shadow-black/20">
+          <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-slate-400">
+            Действия
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              {createError && (
+                <p className="mb-2 rounded-lg bg-red-900/40 px-3 py-2 text-sm text-red-200">
+                  {createError}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={handleCreateRoom}
+                disabled={createLoading}
+                className="w-full rounded-xl bg-emerald-600 py-3.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:opacity-50"
+              >
+                {createLoading ? "Создание…" : "Создать комнату"}
+              </button>
+            </div>
+            <form onSubmit={handleJoinRoom} className="flex flex-col gap-2">
+              {joinError && (
+                <p className="rounded-lg bg-red-900/40 px-3 py-2 text-sm text-red-200">
+                  {joinError}
+                </p>
+              )}
+              <input
+                type="text"
+                value={roomCodeInput}
+                onChange={(e) => setRoomCodeInput(e.target.value)}
+                placeholder="Код комнаты (6 символов)"
+                maxLength={6}
+                className="rounded-xl border border-border bg-slate-800/80 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              />
+              <button
+                type="submit"
+                className="w-full rounded-xl border border-border bg-slate-700/80 py-3.5 text-sm font-medium text-slate-200 transition hover:bg-slate-600 hover:text-white"
+              >
+                Присоединиться по коду
+              </button>
+            </form>
+          </div>
+        </section>
+
+        {/* Rooms list */}
+        <section className="rounded-2xl border border-border bg-panel p-6 shadow-xl shadow-black/20">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-medium uppercase tracking-wider text-slate-400">
+              Мои комнаты
+              {rooms.length > 0 && (
+                <span className="ml-2 rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
+                  {rooms.length}
+                </span>
+              )}
+            </h2>
+          </div>
+
+          {roomsError && (
+            <p className="mb-4 rounded-lg bg-amber-900/40 px-4 py-3 text-sm text-amber-200">
+              {roomsError}
             </p>
           )}
-          <button
-            type="button"
-            onClick={handleCreateRoom}
-            disabled={createLoading}
-            className="w-full rounded bg-emerald-600 py-3 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-          >
-            {createLoading ? "Создание…" : "Создать комнату"}
-          </button>
-          <form onSubmit={handleJoinRoom} className="flex flex-col gap-2">
-            {joinError && (
-              <p className="rounded bg-red-900/50 px-3 py-2 text-sm text-red-300">
-                {joinError}
+
+          {roomsLoading ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-600 border-t-emerald-500" />
+              <p className="mt-3 text-sm text-slate-500">Загрузка комнат…</p>
+            </div>
+          ) : rooms.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="mb-3 rounded-full bg-slate-800 p-4">
+                <svg
+                  className="h-8 w-8 text-slate-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  />
+                </svg>
+              </div>
+              <p className="text-slate-400">Нет комнат</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Создайте комнату или присоединитесь по коду выше
               </p>
-            )}
-            <input
-              type="text"
-              value={roomCodeInput}
-              onChange={(e) => setRoomCodeInput(e.target.value)}
-              placeholder="Код подключения (6 символов)"
-              maxLength={6}
-              className="rounded border border-border bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500"
-            />
-            <button
-              type="submit"
-              className="w-full rounded border border-border bg-slate-700 py-3 text-sm font-medium text-slate-200 hover:bg-slate-600"
-            >
-              Присоединиться по коду
-            </button>
-          </form>
-        </div>
-      </div>
+            </div>
+          ) : (
+            <>
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {paginatedRooms.map((room) => {
+                  const code = room.shortCode ?? room.short_code;
+                  const title = room.title ?? "Без названия";
+                  const isOwner = Boolean(room.isOwner);
+                  return (
+                    <li
+                      key={code}
+                      className="group flex flex-col rounded-xl border border-border bg-slate-800/40 transition hover:border-slate-600 hover:bg-slate-800/60"
+                    >
+                      <Link
+                        to={`/editor/${encodeURIComponent(code)}`}
+                        className="flex min-h-0 flex-1 flex-col p-4"
+                      >
+                        <p className="truncate font-medium text-slate-100 group-hover:text-white">
+                          {title}
+                        </p>
+                        <span className="mt-1 inline-block w-fit rounded-md bg-slate-700/80 px-2 py-0.5 font-mono text-xs text-slate-400">
+                          {code}
+                        </span>
+                      </Link>
+                      <div className="flex items-center gap-2 border-t border-border px-4 py-3">
+                        <Link
+                          to={`/editor/${encodeURIComponent(code)}`}
+                          className="rounded-lg bg-emerald-600/80 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500"
+                        >
+                          Открыть
+                        </Link>
+                        {isOwner && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleDeleteRoom(code, title);
+                            }}
+                            disabled={deletingCode === code}
+                            className="rounded-lg bg-red-900/50 px-3 py-1.5 text-xs font-medium text-red-200 transition hover:bg-red-800/60 disabled:opacity-50"
+                          >
+                            {deletingCode === code ? "…" : "Удалить"}
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {totalPages > 1 && (
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRoomsPage((p) => Math.max(1, p - 1))}
+                    disabled={roomsPage === 1}
+                    className="rounded-lg border border-border bg-slate-800 px-3 py-2 text-sm text-slate-300 transition hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800"
+                  >
+                    ← Назад
+                  </button>
+                  <span className="flex items-center gap-1 px-2">
+                    {(() => {
+                      const maxVisible = 5;
+                      let pages = [];
+                      if (totalPages <= maxVisible + 2) {
+                        pages = Array.from(
+                          { length: totalPages },
+                          (_, i) => i + 1,
+                        );
+                      } else {
+                        const left = Math.max(
+                          1,
+                          roomsPage - Math.floor(maxVisible / 2),
+                        );
+                        const right = Math.min(
+                          totalPages,
+                          left + maxVisible - 1,
+                        );
+                        if (left > 1) pages.push(1, "…");
+                        pages.push(
+                          ...Array.from(
+                            { length: right - left + 1 },
+                            (_, i) => left + i,
+                          ),
+                        );
+                        if (right < totalPages) pages.push("…", totalPages);
+                      }
+                      return pages.map((p, idx) =>
+                        p === "…" ? (
+                          <span
+                            key={`ellipsis-${idx}`}
+                            className="px-1 text-slate-500"
+                          >
+                            …
+                          </span>
+                        ) : (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setRoomsPage(p)}
+                            className={`min-w-[2.25rem] rounded-lg py-2 text-sm transition ${
+                              roomsPage === p
+                                ? "bg-emerald-600 text-white"
+                                : "border border-border bg-slate-800/60 text-slate-300 hover:bg-slate-700"
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        ),
+                      );
+                    })()}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRoomsPage((p) => Math.min(totalPages, p + 1))
+                    }
+                    disabled={roomsPage === totalPages}
+                    className="rounded-lg border border-border bg-slate-800 px-3 py-2 text-sm text-slate-300 transition hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800"
+                  >
+                    Вперёд →
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      </main>
     </div>
   );
 }
