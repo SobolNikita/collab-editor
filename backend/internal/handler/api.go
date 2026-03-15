@@ -1,1 +1,301 @@
+// Package handler — HTTP-обработчики (продолжение).
+//
+// api.go — ожидаемые функции:
+//
+//   - CreateFile(w http.ResponseWriter, r *http.Request) — принимает POST /api/files с Bearer и body { title? },
+//     делает создание файла и комнаты (short_code), добавляет владельца в room_participants, отдаёт JSON { id }.
+//
+//   - GetFileOrJoin(w http.ResponseWriter, r *http.Request) — принимает GET /api/files/{id}, извлекает id из r.PathValue("id"),
+//     проверяет доступ к файлу, добавляет пользователя в участники комнаты, отдаёт 200 (тело по желанию).
+//
+// - GetFileRoom(w http.ResponseWriter, r *http.Request) — принимает GET /api/files/{fileId}/room, отдаёт JSON { roomCode } (short_code файла).
+//
+//   - GetRoomParticipants(w http.ResponseWriter, r *http.Request) — принимает GET /api/rooms/{roomCode}/participants,
+//     проверяет, что текущий пользователь — участник; отдаёт JSON { participants: [ { id или user_id, ... } ] } или 403.
+//
+//   - GetRoomPermissions(w http.ResponseWriter, r *http.Request) — принимает GET /api/rooms/{roomId}/permissions,
+//     отдаёт JSON { isOwner: true/false } (владелец файла = owner комнаты по room_code).
+//
+//   - Run(w http.ResponseWriter, r *http.Request) — принимает POST /api/run с body { code, language }, вызывает executionService,
+//     отдаёт JSON { stdout, stderr, error? }.
 package handler
+
+import (
+	"encoding/json"
+	"errors"
+	"log"
+	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/SobolNikita/collab-editor/internal/auth"
+	"github.com/SobolNikita/collab-editor/internal/config"
+	"github.com/SobolNikita/collab-editor/internal/service"
+)
+
+func CreateFile(w http.ResponseWriter, r *http.Request) {
+	cfg, err := config.Load()
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	userID, err := auth.UserIDFromRequest(r, &cfg)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	userIDInt, err := strconv.ParseInt(userID, 10, 64)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var body struct {
+		Title string `json:"title"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	title := strings.TrimSpace(body.Title)
+	if title == "" {
+		title = "Untitled"
+	}
+	file, err := service.CreateFile(r.Context(), userIDInt, title)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"id": file.ID, "shortCode": file.ShortCode})
+}
+
+func JoinRoom(w http.ResponseWriter, r *http.Request) {
+	cfg, err := config.Load()
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	userID, err := auth.UserIDFromRequest(r, &cfg)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	userIDInt, err := strconv.ParseInt(userID, 10, 64)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fileIDStr := r.PathValue("id")
+	if fileIDStr == "" {
+		respondJSONError(w, "missing file id", http.StatusBadRequest)
+		return
+	}
+	fileID, err := strconv.ParseInt(fileIDStr, 10, 64)
+	if err != nil {
+		respondJSONError(w, "invalid file id", http.StatusBadRequest)
+		return
+	}
+	err = service.JoinRoom(r.Context(), fileID, userIDInt)
+	if err != nil {
+		if errors.Is(err, service.ErrFileNotFound) {
+			respondJSONError(w, "file not found", http.StatusNotFound)
+			return
+		}
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"id": fileID})
+}
+
+func JoinByCode(w http.ResponseWriter, r *http.Request) {
+	cfg, err := config.Load()
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	userID, err := auth.UserIDFromRequest(r, &cfg)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	userIDInt, err := strconv.ParseInt(userID, 10, 64)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	code := r.PathValue("code")
+	if code == "" {
+		respondJSONError(w, "missing code", http.StatusBadRequest)
+		return
+	}
+	_, err = service.JoinByCode(r.Context(), code, userIDInt)
+	if err != nil {
+		if errors.Is(err, service.ErrFileNotFound) {
+			respondJSONError(w, "file not found", http.StatusNotFound)
+			return
+		}
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"shortCode": code})
+}
+func GetRoomParticipants(w http.ResponseWriter, r *http.Request) {
+	cfg, err := config.Load()
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	userID, err := auth.UserIDFromRequest(r, &cfg)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	userIDInt, err := strconv.ParseInt(userID, 10, 64)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	roomCode := r.PathValue("roomCode")
+	if roomCode == "" {
+		respondJSONError(w, "missing room code", http.StatusBadRequest)
+		return
+	}
+	participants, err := service.GetRoomParticipants(r.Context(), roomCode)
+	if err != nil {
+		if errors.Is(err, service.ErrFileNotFound) {
+			respondJSONError(w, "room not found", http.StatusNotFound)
+			return
+		}
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	allowed := false
+	for _, p := range participants {
+		if p.UserID == userIDInt {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		respondJSONError(w, "access denied", http.StatusForbidden)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"participants": participants})
+}
+func GetRoomPermissions(w http.ResponseWriter, r *http.Request) {
+	cfg, err := config.Load()
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	userID, err := auth.UserIDFromRequest(r, &cfg)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	userIDInt, err := strconv.ParseInt(userID, 10, 64)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	roomCode := r.PathValue("roomId")
+	if roomCode == "" {
+		respondJSONError(w, "missing room code", http.StatusBadRequest)
+		return
+	}
+	ownerId, err := service.GetOwnerByRoomCode(r.Context(), roomCode)
+	if err != nil {
+		if errors.Is(err, service.ErrFileNotFound) {
+			respondJSONError(w, "room not found", http.StatusNotFound)
+			return
+		}
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	isOwner := ownerId == userIDInt
+	respondJSON(w, http.StatusOK, map[string]interface{}{"isOwner": isOwner})
+}
+
+func Run(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		respondJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Code     string `json:"code"`
+		Language string `json:"language"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		respondJSONError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	language := strings.TrimSpace(body.Language)
+	code := body.Code
+	stdout, stderr, err := service.Run(r.Context(), code, language)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"stdout": stdout,
+		"stderr": stderr,
+	})
+}
+
+func GetMyRooms(w http.ResponseWriter, r *http.Request) {
+	cfg, err := config.Load()
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	userID, err := auth.UserIDFromRequest(r, &cfg)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	userIDInt, err := strconv.ParseInt(userID, 10, 64)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	rooms, err := service.GetMyRooms(r.Context(), userIDInt)
+	if err != nil {
+		log.Printf("[GetMyRooms] %v", err)
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"rooms": rooms})
+}
+
+func DeleteRoom(w http.ResponseWriter, r *http.Request) {
+	cfg, err := config.Load()
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	userID, err := auth.UserIDFromRequest(r, &cfg)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	userIDInt, err := strconv.ParseInt(userID, 10, 64)
+	if err != nil {
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	roomCode := r.PathValue("roomCode")
+	if roomCode == "" {
+		respondJSONError(w, "missing room code", http.StatusBadRequest)
+		return
+	}
+	err = service.DeleteRoom(r.Context(), roomCode, userIDInt)
+	if err != nil {
+		if errors.Is(err, service.ErrFileNotFound) {
+			respondJSONError(w, "room not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, service.ErrForbidden) {
+			respondJSONError(w, "only the owner can delete the room", http.StatusForbidden)
+			return
+		}
+		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
