@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,17 +15,20 @@ import (
 func CreateFile(w http.ResponseWriter, r *http.Request) {
 	cfg, err := config.Load()
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("CreateFile", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	userID, err := auth.UserIDFromRequest(r, &cfg)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		logError("CreateFile", err)
+		respondJSONError(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	userIDInt, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("CreateFile", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	var body struct {
@@ -39,7 +41,8 @@ func CreateFile(w http.ResponseWriter, r *http.Request) {
 	}
 	file, err := service.CreateFile(r.Context(), userIDInt, title)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("CreateFile", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{"id": file.ID, "shortCode": file.ShortCode})
@@ -48,17 +51,20 @@ func CreateFile(w http.ResponseWriter, r *http.Request) {
 func JoinRoom(w http.ResponseWriter, r *http.Request) {
 	cfg, err := config.Load()
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("JoinRoom", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	userID, err := auth.UserIDFromRequest(r, &cfg)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		logError("JoinRoom", err)
+		respondJSONError(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	userIDInt, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("JoinRoom", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	fileIDStr := r.PathValue("id")
@@ -77,7 +83,8 @@ func JoinRoom(w http.ResponseWriter, r *http.Request) {
 			respondJSONError(w, "file not found", http.StatusNotFound)
 			return
 		}
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("JoinRoom", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{"id": fileID})
@@ -86,17 +93,20 @@ func JoinRoom(w http.ResponseWriter, r *http.Request) {
 func JoinByCode(w http.ResponseWriter, r *http.Request) {
 	cfg, err := config.Load()
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("JoinByCode", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	userID, err := auth.UserIDFromRequest(r, &cfg)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		logError("JoinByCode", err)
+		respondJSONError(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	userIDInt, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("JoinByCode", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	code := r.PathValue("code")
@@ -110,7 +120,8 @@ func JoinByCode(w http.ResponseWriter, r *http.Request) {
 			respondJSONError(w, "file not found", http.StatusNotFound)
 			return
 		}
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("JoinByCode", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{"shortCode": code})
@@ -118,17 +129,20 @@ func JoinByCode(w http.ResponseWriter, r *http.Request) {
 func GetRoomParticipants(w http.ResponseWriter, r *http.Request) {
 	cfg, err := config.Load()
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("GetRoomParticipants", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	userID, err := auth.UserIDFromRequest(r, &cfg)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		logError("GetRoomParticipants", err)
+		respondJSONError(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	userIDInt, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("GetRoomParticipants", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	roomCode := r.PathValue("roomCode")
@@ -142,7 +156,8 @@ func GetRoomParticipants(w http.ResponseWriter, r *http.Request) {
 			respondJSONError(w, "room not found", http.StatusNotFound)
 			return
 		}
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("GetRoomParticipants", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	allowed := false
@@ -161,17 +176,20 @@ func GetRoomParticipants(w http.ResponseWriter, r *http.Request) {
 func GetRoomPermissions(w http.ResponseWriter, r *http.Request) {
 	cfg, err := config.Load()
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("GetRoomPermissions", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	userID, err := auth.UserIDFromRequest(r, &cfg)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		logError("GetRoomPermissions", err)
+		respondJSONError(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	userIDInt, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("GetRoomPermissions", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	roomCode := r.PathValue("roomId")
@@ -185,7 +203,8 @@ func GetRoomPermissions(w http.ResponseWriter, r *http.Request) {
 			respondJSONError(w, "room not found", http.StatusNotFound)
 			return
 		}
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("GetRoomPermissions", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	isOwner := ownerId == userIDInt
@@ -209,7 +228,8 @@ func Run(w http.ResponseWriter, r *http.Request) {
 	code := body.Code
 	stdout, stderr, err := service.Run(r.Context(), code, language)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("Run", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{
@@ -221,23 +241,26 @@ func Run(w http.ResponseWriter, r *http.Request) {
 func GetMyRooms(w http.ResponseWriter, r *http.Request) {
 	cfg, err := config.Load()
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("GetMyRooms", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	userID, err := auth.UserIDFromRequest(r, &cfg)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		logError("GetMyRooms", err)
+		respondJSONError(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	userIDInt, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("GetMyRooms", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	rooms, err := service.GetMyRooms(r.Context(), userIDInt)
 	if err != nil {
-		log.Printf("[GetMyRooms] %v", err)
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("GetMyRooms", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{"rooms": rooms})
@@ -246,17 +269,20 @@ func GetMyRooms(w http.ResponseWriter, r *http.Request) {
 func DeleteRoom(w http.ResponseWriter, r *http.Request) {
 	cfg, err := config.Load()
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("DeleteRoom", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	userID, err := auth.UserIDFromRequest(r, &cfg)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		logError("DeleteRoom", err)
+		respondJSONError(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	userIDInt, err := strconv.ParseInt(userID, 10, 64)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("DeleteRoom", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	roomCode := r.PathValue("roomCode")
@@ -274,7 +300,8 @@ func DeleteRoom(w http.ResponseWriter, r *http.Request) {
 			respondJSONError(w, "only the owner can delete the room", http.StatusForbidden)
 			return
 		}
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("DeleteRoom", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

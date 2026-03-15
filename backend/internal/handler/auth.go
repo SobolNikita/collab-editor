@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -16,6 +17,12 @@ import (
 	"github.com/SobolNikita/collab-editor/internal/service"
 )
 
+func logError(handler string, err error) {
+	if err != nil {
+		log.Printf("[%s] error: %v", handler, err)
+	}
+}
+
 type googleState struct {
 	CallbackURL string `json:"callback_url"`
 	Redirect    string `json:"redirect"`
@@ -24,7 +31,8 @@ type googleState struct {
 func GoogleAuth(w http.ResponseWriter, r *http.Request) {
 	cfg, err := config.Load()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logError("GoogleAuth", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -47,7 +55,8 @@ func GoogleAuth(w http.ResponseWriter, r *http.Request) {
 func GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	cfg, err := config.Load()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logError("GoogleCallback", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -72,19 +81,22 @@ func GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	googleUser, err := oauth.GetGoogleUser(ctx, code, &cfg)
 	if err != nil {
-		http.Error(w, "google auth failed: "+err.Error(), http.StatusUnauthorized)
+		logError("GoogleCallback", err)
+		http.Error(w, "authentication failed", http.StatusUnauthorized)
 		return
 	}
 
 	user, err := findOrCreateUserByGoogle(ctx, googleUser)
 	if err != nil {
-		http.Error(w, "user lookup failed: "+err.Error(), http.StatusInternalServerError)
+		logError("GoogleCallback", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	token, err := auth.GenerateToken(formatUserID(user.ID), &cfg)
 	if err != nil {
-		http.Error(w, "token failed", http.StatusInternalServerError)
+		logError("GoogleCallback", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -147,7 +159,8 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg, err := config.Load()
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("Login", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	var body struct {
@@ -160,7 +173,8 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 	user, token, err := service.Login(r.Context(), body.Email, body.Password, &cfg)
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusUnauthorized)
+		logError("Login", err)
+		respondJSONError(w, "invalid credentials", http.StatusUnauthorized)
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{"token": token, "user": user})
@@ -173,7 +187,8 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg, err := config.Load()
 	if err != nil {
-		respondJSONError(w, err.Error(), http.StatusInternalServerError)
+		logError("Register", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	var body struct {
