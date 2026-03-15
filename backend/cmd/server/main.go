@@ -14,7 +14,7 @@ import (
 )
 
 func enableCORS(next http.Handler) http.Handler {
-	allowedOrigins := os.Getenv("CORS_ORIGIN") // через запятую для списка; пусто = разрешать любой Origin (удобно с ВМ)
+	allowedOrigins := os.Getenv("CORS_ORIGIN")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		if origin != "" {

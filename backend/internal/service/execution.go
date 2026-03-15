@@ -1,9 +1,3 @@
-// Package service — бизнес-логика (продолжение).
-//
-// execution.go — ожидаемые функции:
-//
-//   - Run(ctx, code string, language string) (stdout, stderr string, err error) — принимает исходный код и язык (javascript, python, go, ...),
-//     делает запуск кода в песочнице/интерпретаторе (например через docker или exec), отдаёт stdout, stderr и ошибку при сбое.
 package service
 
 import (

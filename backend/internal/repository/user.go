@@ -1,14 +1,3 @@
-// Package repository — работа с БД: только запросы (SELECT/INSERT/UPDATE/DELETE), без бизнес-логики.
-//
-// user.go — ожидаемые функции:
-//
-// - Create(ctx, email, passwordHash, name string) (*models.User, error) — вставляет запись в users, отдаёт созданного пользователя.
-//
-// - GetByID(ctx, id int64) (*models.User, error) — выбирает пользователя по id, отдаёт nil и ошибку если не найден.
-//
-// - GetByEmail(ctx, email string) (*models.User, error) — выбирает по email (для логина).
-//
-// - GetByGoogleID(ctx, googleID string) (*models.User, error) — для OAuth (если есть google_id в users).
 package repository
 
 import (

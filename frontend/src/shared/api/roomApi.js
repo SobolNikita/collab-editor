@@ -18,7 +18,6 @@ export async function getRoomParticipants(roomCode) {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return { participants: [], ok: false };
-    console.log("data", data);
     const list = data.participants ?? data ?? [];
     return { participants: Array.isArray(list) ? list : [], ok: true };
   } catch (err) {
@@ -111,10 +110,6 @@ export async function getMyRooms(token) {
   }
 }
 
-/**
- * Удалить комнату (доступно только владельцу).
- * Бэкенд: DELETE /api/rooms/:shortCode — 204 или 200 при успехе, 403 если не владелец, 404 если комната не найдена.
- */
 export async function deleteRoom(shortCode) {
   const env = getEnv();
   const auth = getStoredAuth();

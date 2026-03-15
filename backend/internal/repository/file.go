@@ -1,20 +1,3 @@
-// Package repository — работа с БД (продолжение).
-//
-// file.go — ожидаемые функции:
-//
-// - Create(ctx, ownerID int64, shortCode, title string) (*models.File, error) — вставляет файл в files, отдаёт созданный файл.
-//
-// - GetByID(ctx, id int64) (*models.File, error) — выборка файла по id.
-//
-// - GetByShortCode(ctx, shortCode string) (*models.File, error) — по short_code (roomCode).
-//
-// room_participants (можно в отдельном room.go или здесь):
-//
-// - AddParticipant(ctx, roomCode string, userID int64) error — INSERT в room_participants.
-//
-// - IsParticipant(ctx, roomCode string, userID int64) (bool, error) — SELECT EXISTS.
-//
-// - ListParticipantsByRoom(ctx, roomCode string) ([]Participant или []User, error) — JOIN с users по user_id.
 package repository
 
 import (

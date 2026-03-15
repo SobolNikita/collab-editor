@@ -1,23 +1,3 @@
-// Package handler — HTTP-обработчики (продолжение).
-//
-// api.go — ожидаемые функции:
-//
-//   - CreateFile(w http.ResponseWriter, r *http.Request) — принимает POST /api/files с Bearer и body { title? },
-//     делает создание файла и комнаты (short_code), добавляет владельца в room_participants, отдаёт JSON { id }.
-//
-//   - GetFileOrJoin(w http.ResponseWriter, r *http.Request) — принимает GET /api/files/{id}, извлекает id из r.PathValue("id"),
-//     проверяет доступ к файлу, добавляет пользователя в участники комнаты, отдаёт 200 (тело по желанию).
-//
-// - GetFileRoom(w http.ResponseWriter, r *http.Request) — принимает GET /api/files/{fileId}/room, отдаёт JSON { roomCode } (short_code файла).
-//
-//   - GetRoomParticipants(w http.ResponseWriter, r *http.Request) — принимает GET /api/rooms/{roomCode}/participants,
-//     проверяет, что текущий пользователь — участник; отдаёт JSON { participants: [ { id или user_id, ... } ] } или 403.
-//
-//   - GetRoomPermissions(w http.ResponseWriter, r *http.Request) — принимает GET /api/rooms/{roomId}/permissions,
-//     отдаёт JSON { isOwner: true/false } (владелец файла = owner комнаты по room_code).
-//
-//   - Run(w http.ResponseWriter, r *http.Request) — принимает POST /api/run с body { code, language }, вызывает executionService,
-//     отдаёт JSON { stdout, stderr, error? }.
 package handler
 
 import (

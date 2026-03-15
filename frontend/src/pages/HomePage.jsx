@@ -132,7 +132,6 @@ export function HomePage() {
 
   return (
     <div className="min-h-screen bg-surface">
-      {/* Header */}
       <header className="sticky top-0 z-10 border-b border-border bg-panel/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
           <h1 className="text-xl font-semibold tracking-tight text-slate-100">
@@ -157,7 +156,6 @@ export function HomePage() {
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-8">
-        {/* Actions card */}
         <section className="mb-10 rounded-2xl border border-border bg-panel p-6 shadow-xl shadow-black/20">
           <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-slate-400">
             Действия
@@ -202,7 +200,6 @@ export function HomePage() {
           </div>
         </section>
 
-        {/* Rooms list */}
         <section className="rounded-2xl border border-border bg-panel p-6 shadow-xl shadow-black/20">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-medium uppercase tracking-wider text-slate-400">

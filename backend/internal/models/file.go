@@ -1,11 +1,3 @@
-// Package models — структуры данных (продолжение).
-//
-// file.go — ожидаемые типы:
-//
-//   - type File struct { ID int64, ShortCode string, OwnerID int64, Title string, ... } — поля совпадают с таблицей files.
-//     ShortCode — это roomCode (например H45G2K), по нему строятся комнаты и room_participants.
-//
-// - type RoomParticipant struct { ... } — при наличии отдельной таблицы room_participants.
 package models
 
 import "time"

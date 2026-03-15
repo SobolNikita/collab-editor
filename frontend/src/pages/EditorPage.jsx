@@ -39,7 +39,9 @@ export function EditorPage() {
   const env = useMemo(() => getEnv(), []);
 
   const myColorFromApi = useMemo(() => {
-    const p = participants.find((pr) => String(pr.user_id) === String(user?.id));
+    const p = participants.find(
+      (pr) => String(pr.user_id) === String(user?.id),
+    );
     return p?.color || null;
   }, [participants, user?.id]);
 

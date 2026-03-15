@@ -1,19 +1,3 @@
-// Package service — бизнес-логика (продолжение).
-//
-// file.go — ожидаемые функции:
-//
-//   - CreateFile(ctx, ownerID int64 string) (*models.File, error) — принимает id владельца и заголовок,
-//     генерирует short_code (roomCode), создаёт запись в files и добавляет владельца в room_participants, отдаёт файл и nil или ошибку.
-//
-// - GetFileByID(ctx, fileID int64) (*models.File, error) — принимает id файла, отдаёт файл или nil и ошибку (например ErrNotFound).
-//
-// - GetOrCreateRoomForFile(ctx, fileID int64) (roomCode string, err error) — по fileID возвращает short_code файла (roomCode).
-//
-// - AddParticipant(ctx, roomCode string, userID int64) error — добавляет пользователя в room_participants; отдаёт nil или ошибку.
-//
-// - IsParticipant(ctx, roomCode string, userID int64) (bool, error) — проверяет, есть ли userID в участниках комнаты; отдаёт true/false и ошибку.
-//
-// - ListParticipants(ctx, roomCode string) ([]models.User или []Participant, error) — список участников комнаты по roomCode.
 package service
 
 import (
@@ -69,7 +53,6 @@ func JoinRoom(ctx context.Context, fileID, userID int64) error {
 	return repository.AddParticipantByFileID(ctx, fileID, userID)
 }
 
-// JoinByCode находит файл по 6-значному коду (short_code), добавляет пользователя в участники, возвращает id файла.
 func JoinByCode(ctx context.Context, code string, userID int64) (fileID int64, err error) {
 	file, err := repository.GetFileByShortCode(ctx, code)
 	if err != nil {
@@ -84,7 +67,6 @@ func JoinByCode(ctx context.Context, code string, userID int64) (fileID int64, e
 	return file.ID, nil
 }
 
-// GetFileByID возвращает файл по id или ErrFileNotFound.
 func GetFileByID(ctx context.Context, id int64) (*models.File, error) {
 	file, err := repository.GetFileByID(ctx, id)
 	if err != nil {
