@@ -1,9 +1,4 @@
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useState,
-} from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { useCollabSession } from "./collab/useCollabSession.js";
 
@@ -25,6 +20,9 @@ export const EditorWorkspace = forwardRef(function EditorWorkspace(
     wsUrl,
     token,
     onStatusChange,
+    isRoomOwner,
+    onLanguageChange,
+    myColorFromApi,
   },
   ref,
 ) {
@@ -33,25 +31,34 @@ export const EditorWorkspace = forwardRef(function EditorWorkspace(
   const [modelRef, setModelRef] = useState(null);
   const roomName = roomCodeProp ?? "";
 
+  const { connectionStatus, isSynced, participants, setSharedLanguage: setCollabLanguage } =
+    useCollabSession({
+      wsUrl,
+      roomName,
+      monaco: monacoRef,
+      editor: editorRef,
+      model: modelRef,
+      username,
+      token,
+      defaultText: sampleCodeByLanguage[language] ?? "",
+      language,
+      onLanguageChangeFromCollab: onLanguageChange,
+      isRoomOwner,
+      myColorFromApi,
+    });
+
   useImperativeHandle(
     ref,
     () => ({
       getContent() {
         return editorRef?.getValue() ?? "";
       },
+      setSharedLanguage(lang) {
+        setCollabLanguage(lang);
+      },
     }),
-    [editorRef],
+    [editorRef, setCollabLanguage],
   );
-
-  const { connectionStatus, isSynced, participants } = useCollabSession({
-    wsUrl,
-    roomName,
-    monaco: monacoRef,
-    editor: editorRef,
-    model: modelRef,
-    username,
-    token,
-  });
 
   useEffect(() => {
     onStatusChange({
@@ -68,7 +75,6 @@ export const EditorWorkspace = forwardRef(function EditorWorkspace(
         height="100%"
         language={language}
         defaultLanguage={language}
-        defaultValue={sampleCodeByLanguage[language] ?? ""}
         theme="vs-dark"
         options={{
           minimap: { enabled: false },
@@ -77,6 +83,7 @@ export const EditorWorkspace = forwardRef(function EditorWorkspace(
           tabSize: 2,
           automaticLayout: true,
           lineNumbers: "on",
+          trimAutoWhitespace: true,
         }}
         onMount={(editor, monaco) => {
           setEditorRef(editor);

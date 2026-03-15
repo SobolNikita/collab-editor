@@ -1,5 +1,4 @@
-import { isOwner } from "../../shared/api/permissions.js";
-import { useState, useEffect} from "react";
+import { Link } from "react-router-dom";
 
 const languages = ["javascript", "typescript", "python", "go", "cpp", "json"];
 
@@ -11,40 +10,16 @@ export function Toolbar({
   onLogout,
   onRun,
   runLoading,
+  isRoomOwner,
 }) {
-
-  const [isRoomOwner, setIsRoomOwner] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function checkOwner() {
-      try {
-        const result = await isOwner(roomCode);
-        if (isMounted) {
-          setIsRoomOwner(result);
-        }
-      } catch (error) {
-        console.error("Error while checking permissions:", error);
-        if (isMounted) setIsRoomOwner(false);
-      }
-    }
-
-    if (roomCode) {
-      checkOwner();
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [roomCode]);
-
   return (
     <header className="flex items-center justify-between border-b border-border bg-panel px-4 py-3">
       <div className="flex items-center gap-3">
-        <h1 className="text-sm font-semibold uppercase tracking-wide text-slate-200">
+        <Link
+          to="/"
+          className="text-sm font-semibold uppercase tracking-wide text-slate-200 hover:text-white">
           Collab Editor
-        </h1>
+        </Link>
         <span className="rounded bg-slate-700 px-2 py-1 text-xs text-slate-100">
           комната: {roomCode}
         </span>

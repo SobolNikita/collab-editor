@@ -7,10 +7,8 @@ import { RunOutputPanel } from "../components/editor/RunOutputPanel.jsx";
 import { StatusBar } from "../components/editor/StatusBar.jsx";
 import { EditorWorkspace } from "../features/editor/EditorWorkspace.jsx";
 import { getEnv } from "../app/env.js";
-import {
-  getRoomParticipants,
-  checkRoomAccess,
-} from "../shared/api/roomApi.js";
+import { isOwner } from "../shared/api/permissions.js";
+import { getRoomParticipants, checkRoomAccess } from "../shared/api/roomApi.js";
 
 const RUNNABLE_LANGUAGES = new Set([
   "javascript",
@@ -39,6 +37,37 @@ export function EditorPage() {
 
   const workspaceRef = useRef(null);
   const env = useMemo(() => getEnv(), []);
+
+  const myColorFromApi = useMemo(() => {
+    const p = participants.find((pr) => String(pr.user_id) === String(user?.id));
+    return p?.color || null;
+  }, [participants, user?.id]);
+
+  const [isRoomOwner, setIsRoomOwner] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkOwner() {
+      try {
+        const result = await isOwner(roomCode);
+        if (isMounted) {
+          setIsRoomOwner(result);
+        }
+      } catch (error) {
+        console.error("Error while checking permissions:", error);
+        if (isMounted) setIsRoomOwner(false);
+      }
+    }
+
+    if (roomCode) {
+      checkOwner();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [roomCode]);
 
   useEffect(() => {
     if (!roomCode || !env.apiUrl || !token || !user?.id) {
@@ -74,12 +103,7 @@ export function EditorPage() {
   }, [roomCode, env.apiUrl, token]);
 
   useEffect(() => {
-    if (
-      !roomCode ||
-      !env.apiUrl ||
-      !token ||
-      accessStatus !== "allowed"
-    )
+    if (!roomCode || !env.apiUrl || !token || accessStatus !== "allowed")
       return;
     const id = setInterval(() => {
       getRoomParticipants(roomCode)
@@ -92,6 +116,16 @@ export function EditorPage() {
   const handleStatusChange = useCallback((nextStatus) => {
     setStatus(nextStatus);
   }, []);
+
+  const handleLanguageChange = useCallback(
+    (newLang) => {
+      setLanguage(newLang);
+      if (isRoomOwner) {
+        workspaceRef.current?.setSharedLanguage?.(newLang);
+      }
+    },
+    [isRoomOwner],
+  );
 
   const handleLogout = useCallback(() => {
     authLogout();
@@ -149,7 +183,9 @@ export function EditorPage() {
     return (
       <div className="flex h-screen w-screen flex-col items-center justify-center bg-surface text-slate-100">
         <p className="text-slate-400">
-          {!roomCode ? "Некорректная ссылка на комнату." : "Проверка доступа к комнате…"}
+          {!roomCode
+            ? "Некорректная ссылка на комнату."
+            : "Проверка доступа к комнате…"}
         </p>
       </div>
     );
@@ -164,11 +200,12 @@ export function EditorPage() {
       <Toolbar
         roomCode={roomCode}
         language={language}
-        onLanguageChange={setLanguage}
+        onLanguageChange={handleLanguageChange}
         userDisplayName={user?.name ?? user?.email ?? "User"}
         onLogout={handleLogout}
         onRun={handleRun}
         runLoading={runLoading}
+        isRoomOwner={isRoomOwner}
       />
 
       <main className="flex min-h-0 flex-1">
@@ -182,6 +219,9 @@ export function EditorPage() {
               wsUrl={env.wsUrl}
               token={token}
               onStatusChange={handleStatusChange}
+              isRoomOwner={isRoomOwner}
+              onLanguageChange={setLanguage}
+              myColorFromApi={myColorFromApi}
             />
           </div>
           {runPanelOpen && (

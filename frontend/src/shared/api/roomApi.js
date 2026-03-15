@@ -18,6 +18,7 @@ export async function getRoomParticipants(roomCode) {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return { participants: [], ok: false };
+    console.log("data", data);
     const list = data.participants ?? data ?? [];
     return { participants: Array.isArray(list) ? list : [], ok: true };
   } catch (err) {
@@ -78,5 +79,62 @@ export async function isOwner(roomId) {
   } catch (err) {
     console.error("Error checking permissions:", err);
     return false;
+  }
+}
+
+export async function getMyRooms(token) {
+  const env = getEnv();
+  const authToken = token ?? getStoredAuth()?.token;
+  if (!env.apiUrl || !authToken) return { rooms: [], ok: false };
+
+  const base = env.apiUrl.replace(/\/$/, "");
+  const url = `${base}/api/rooms`;
+
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = data.error || data.message || `Ошибка ${res.status}`;
+      return { rooms: [], ok: false, error: msg };
+    }
+    const list = data.rooms ?? data ?? [];
+    return { rooms: Array.isArray(list) ? list : [], ok: true };
+  } catch (err) {
+    console.error("Error getting my rooms:", err);
+    return { rooms: [], ok: false, error: err.message };
+  }
+}
+
+/**
+ * Удалить комнату (доступно только владельцу).
+ * Бэкенд: DELETE /api/rooms/:shortCode — 204 или 200 при успехе, 403 если не владелец, 404 если комната не найдена.
+ */
+export async function deleteRoom(shortCode) {
+  const env = getEnv();
+  const auth = getStoredAuth();
+  if (!env.apiUrl || !auth?.token) return { ok: false, error: "Нет авторизации" };
+
+  const base = env.apiUrl.replace(/\/$/, "");
+  const url = `${base}/api/rooms/${encodeURIComponent(shortCode)}`;
+
+  try {
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${auth.token}` },
+    });
+    if (res.ok) return { ok: true };
+    const data = await res.json().catch(() => ({}));
+    return {
+      ok: false,
+      error: data.error || (res.status === 403 ? "Только владелец может удалить комнату" : `Ошибка ${res.status}`),
+    };
+  } catch (err) {
+    return { ok: false, error: err.message || "Не удалось удалить комнату" };
   }
 }
