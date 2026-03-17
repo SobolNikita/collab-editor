@@ -11,6 +11,8 @@ export function HomePage() {
   const { user, logout, token } = useAuth();
   const env = useMemo(() => getEnv(), []);
   const [roomCodeInput, setRoomCodeInput] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createTitle, setCreateTitle] = useState("Новый документ");
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState("");
   const [joinError, setJoinError] = useState("");
@@ -45,7 +47,8 @@ export function HomePage() {
     return rooms.slice(start, start + ROOMS_PER_PAGE);
   }, [rooms, roomsPage]);
 
-  const handleCreateRoom = async () => {
+  const handleCreateRoom = async (title) => {
+    const finalTitle = (typeof title === "string" ? title : createTitle).trim() || "Новый документ";
     setCreateError("");
     if (!env.apiUrl || !token) {
       setCreateError("Бэкенд не настроен или нет авторизации.");
@@ -59,7 +62,7 @@ export function HomePage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ title: "Новый документ" }),
+        body: JSON.stringify({ title: finalTitle }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -71,12 +74,25 @@ export function HomePage() {
         setCreateError("Сервер не вернул код комнаты.");
         return;
       }
+      setShowCreateModal(false);
+      setCreateTitle("Новый документ");
       navigate(`/editor/${encodeURIComponent(shortCode)}`);
     } catch (err) {
       setCreateError(err.message || "Не удалось создать комнату.");
     } finally {
       setCreateLoading(false);
     }
+  };
+
+  const openCreateModal = () => {
+    setCreateError("");
+    setCreateTitle("Новый документ");
+    setShowCreateModal(true);
+  };
+
+  const submitCreateModal = (e) => {
+    e.preventDefault();
+    handleCreateRoom(createTitle);
   };
 
   const handleJoinRoom = async (e) => {
@@ -169,11 +185,11 @@ export function HomePage() {
               )}
               <button
                 type="button"
-                onClick={handleCreateRoom}
+                onClick={openCreateModal}
                 disabled={createLoading}
                 className="w-full rounded-xl bg-emerald-600 py-3.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:opacity-50"
               >
-                {createLoading ? "Создание…" : "Создать комнату"}
+                Создать комнату
               </button>
             </div>
             <form onSubmit={handleJoinRoom} className="flex flex-col gap-2">
@@ -199,6 +215,54 @@ export function HomePage() {
             </form>
           </div>
         </section>
+
+        {showCreateModal && (
+          <div
+            className="fixed inset-0 z-20 flex items-center justify-center bg-black/60 p-4"
+            onClick={(e) => e.target === e.currentTarget && setShowCreateModal(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-modal-title"
+          >
+            <div
+              className="w-full max-w-md rounded-2xl border border-border bg-panel p-6 shadow-xl shadow-black/40"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2
+                id="create-modal-title"
+                className="mb-4 text-lg font-semibold text-slate-100"
+              >
+                Название документа
+              </h2>
+              <form onSubmit={submitCreateModal} className="flex flex-col gap-4">
+                <input
+                  type="text"
+                  value={createTitle}
+                  onChange={(e) => setCreateTitle(e.target.value)}
+                  placeholder="Новый документ"
+                  autoFocus
+                  className="rounded-xl border border-border bg-slate-800/80 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 rounded-xl border border-border bg-slate-700/80 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-600 hover:text-white"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={createLoading}
+                    className="flex-1 rounded-xl bg-emerald-600 py-3 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:opacity-50"
+                  >
+                    {createLoading ? "Создание…" : "Создать"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         <section className="rounded-2xl border border-border bg-panel p-6 shadow-xl shadow-black/20">
           <div className="mb-4 flex items-center justify-between">
