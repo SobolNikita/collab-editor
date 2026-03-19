@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { useCollabSession } from "./collab/useCollabSession.js";
+import { loadDocument } from "../../shared/api/roomApi.js";
 
 const sampleCodeByLanguage = {
   javascript: "function hello() {\n  return 'Hello collaborative world';\n}\n",
@@ -29,23 +30,30 @@ export const EditorWorkspace = forwardRef(function EditorWorkspace(
   const [editorRef, setEditorRef] = useState(null);
   const [monacoRef, setMonacoRef] = useState(null);
   const [modelRef, setModelRef] = useState(null);
+  const [yjsIsLoading, setYjsIsLoading] = useState(true);
+
   const roomName = roomCodeProp ?? "";
 
-  const { connectionStatus, isSynced, participants, setSharedLanguage: setCollabLanguage } =
-    useCollabSession({
-      wsUrl,
-      roomName,
-      monaco: monacoRef,
-      editor: editorRef,
-      model: modelRef,
-      username,
-      token,
-      defaultText: sampleCodeByLanguage[language] ?? "",
-      language,
-      onLanguageChangeFromCollab: onLanguageChange,
-      isRoomOwner,
-      myColorFromApi,
-    });
+  const {
+    connectionStatus,
+    isSynced,
+    participants,
+    setSharedLanguage: setCollabLanguage,
+    onEditorReady,
+  } = useCollabSession({
+    wsUrl,
+    roomName,
+    monaco: monacoRef,
+    editor: editorRef,
+    model: modelRef,
+    username,
+    token,
+    defaultText: sampleCodeByLanguage[language] ?? "",
+    language,
+    onLanguageChangeFromCollab: onLanguageChange,
+    isRoomOwner,
+    myColorFromApi,
+  });
 
   useImperativeHandle(
     ref,
@@ -69,7 +77,31 @@ export const EditorWorkspace = forwardRef(function EditorWorkspace(
     });
   }, [connectionStatus, isSynced, onStatusChange, participants, roomName]);
 
-  return (
+  useEffect(() => {
+    setYjsIsLoading(true);
+    loadDocument(roomName)
+      .then((data) => {
+        if (data.ok && data.yjsState?.length) onEditorReady(data.yjsState);
+      })
+      .catch((error) => {
+        console.error("Error loading YJS state:", error);
+      })
+      .finally(() => {
+        setYjsIsLoading(false);
+      });
+  }, [roomName]);
+
+  return yjsIsLoading ? (
+    <div className="h-full w-full bg-surface flex flex-col justify-center items-center gap-6">
+      <div
+        className="animate-spin rounded-full h-10 w-10 border-2 border-slate-600 border-t-emerald-500"
+        aria-hidden
+      />
+      <p className="text-slate-400 text-sm font-medium tracking-wide">
+        Загрузка содержимого…
+      </p>
+    </div>
+  ) : (
     <div className="h-full w-full bg-surface">
       <Editor
         height="100%"

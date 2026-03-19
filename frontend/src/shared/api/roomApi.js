@@ -113,7 +113,8 @@ export async function getMyRooms(token) {
 export async function deleteRoom(shortCode) {
   const env = getEnv();
   const auth = getStoredAuth();
-  if (!env.apiUrl || !auth?.token) return { ok: false, error: "Нет авторизации" };
+  if (!env.apiUrl || !auth?.token)
+    return { ok: false, error: "Нет авторизации" };
 
   const base = env.apiUrl.replace(/\/$/, "");
   const url = `${base}/api/rooms/${encodeURIComponent(shortCode)}`;
@@ -127,9 +128,69 @@ export async function deleteRoom(shortCode) {
     const data = await res.json().catch(() => ({}));
     return {
       ok: false,
-      error: data.error || (res.status === 403 ? "Только владелец может удалить комнату" : `Ошибка ${res.status}`),
+      error:
+        data.error ||
+        (res.status === 403
+          ? "Только владелец может удалить комнату"
+          : `Ошибка ${res.status}`),
     };
   } catch (err) {
     return { ok: false, error: err.message || "Не удалось удалить комнату" };
+  }
+}
+
+export async function saveDoc(roomName, update) {
+  const env = getEnv();
+  const auth = getStoredAuth();
+  if (!env.apiUrl || !auth?.token)
+    return { ok: false, error: "Нет авторизации" };
+
+  const base = env.apiUrl.replace(/\/$/, "");
+  const url = `${base}/api/rooms/${encodeURIComponent(roomName)}/doc`;
+
+  const payload =
+    update instanceof Uint8Array ? { update: Array.from(update) } : { update };
+
+  try {
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${auth.token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return { ok: true };
+    const data = await res.json().catch(() => ({}));
+    return { ok: false, error: data.error || `Ошибка ${res.status}` };
+  } catch (err) {
+    console.error("Error saving document:", err);
+    return { ok: false, error: err.message || "Не удалось сохранить документ" };
+  }
+}
+
+export async function loadDocument(roomName) {
+  const env = getEnv();
+  const auth = getStoredAuth();
+  if (!env.apiUrl || !auth?.token)
+    return { ok: false, error: "Нет авторизации" };
+
+  const base = env.apiUrl.replace(/\/$/, "");
+  const url = `${base}/api/rooms/${encodeURIComponent(roomName)}/doc`;
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${auth.token}`,
+      },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: data.error || `Ошибка ${res.status}` };
+    const update = Array.isArray(data.update) ? new Uint8Array(data.update) : null;
+    return { ok: true, update, yjsState: update };
+  } catch (err) {
+    console.error("Error getting document:", err);
+    return { ok: false, error: err.message || "Не удалось получить документ" };
   }
 }

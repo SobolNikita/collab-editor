@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { MonacoBinding } from "y-monaco";
+import { saveDoc } from "../../../shared/api/roomApi";
 
 function randomColor() {
   const hue = Math.floor(Math.random() * 360);
@@ -37,6 +38,7 @@ export function useCollabSession({
   const [fallbackColor] = useState(() => randomColor());
   const userColor = myColorFromApi || fallbackColor;
   const yTextRef = useRef(null);
+  const ydocRef = useRef(null);
   const setSharedLanguageRef = useRef(null);
   const awarenessRef = useRef(null);
   const languageRef = useRef(language);
@@ -54,13 +56,14 @@ export function useCollabSession({
   );
   const userMetaRef = useRef(userMeta);
   userMetaRef.current = userMeta;
-
   useEffect(() => {
     if (!monaco || !editor || !model || !wsUrl || !roomName) {
       return undefined;
     }
 
     const ydoc = new Y.Doc();
+    ydocRef.current = ydoc;
+
     const yText = ydoc.getText("content");
     const provider = new WebsocketProvider(wsUrl, roomName, ydoc, {
       connect: true,
@@ -87,6 +90,19 @@ export function useCollabSession({
     model.setEOL(monaco.editor.EndOfLineSequence.LF);
 
     yTextRef.current = yText;
+
+    let timer;
+
+    const scheduleSave = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const update = Y.encodeStateAsUpdate(ydoc);
+        saveDoc(roomName, update).then((result) => {
+          if (!result.ok) console.warn("Сохранение не удалось:", result.error);
+        });
+      }, 5000);
+    };
+    ydoc.on("update", scheduleSave);
 
     const binding = new MonacoBinding(
       yText,
@@ -173,10 +189,16 @@ export function useCollabSession({
 
     let typingTimer;
     const contentListener = editor.onDidChangeModelContent(() => {
-      awareness.setLocalStateField("user", { ...userMetaRef.current, isTyping: true });
+      awareness.setLocalStateField("user", {
+        ...userMetaRef.current,
+        isTyping: true,
+      });
       window.clearTimeout(typingTimer);
       typingTimer = window.setTimeout(() => {
-        awareness.setLocalStateField("user", { ...userMetaRef.current, isTyping: false });
+        awareness.setLocalStateField("user", {
+          ...userMetaRef.current,
+          isTyping: false,
+        });
       }, 700);
     });
 
@@ -191,9 +213,12 @@ export function useCollabSession({
       if (styleEl) styleEl.remove();
       provider.off("status", onStatus);
       provider.off("sync", onSynced);
+      clearTimeout(timer);
+      ydoc.off("update", scheduleSave);
       binding.destroy();
       provider.destroy();
       ydoc.destroy();
+      ydocRef.current = null;
       yTextRef.current = null;
       setSharedLanguageRef.current = null;
       setIsSynced(false);
@@ -218,10 +243,16 @@ export function useCollabSession({
     setSharedLanguageRef.current?.(lang);
   };
 
+  const onEditorReady = useCallback((state) => {
+    if (!state?.length || !ydocRef.current) return;
+    Y.applyUpdate(ydocRef.current, state);
+  }, []);
+
   return {
     connectionStatus,
     isSynced,
     participants,
     setSharedLanguage,
+    onEditorReady,
   };
 }

@@ -66,9 +66,9 @@ func AddParticipantByFileID(ctx context.Context, fileID, userID int64) error {
 func GetFileByID(ctx context.Context, id int64) (*models.File, error) {
 	f := &models.File{}
 	err := DB.QueryRowContext(ctx,
-		`SELECT id, short_code, owner_id, title, language, content, created_at, updated_at FROM files WHERE id = $1`,
+		`SELECT id, short_code, owner_id, title, language, content, yjs_state, created_at, updated_at FROM files WHERE id = $1`,
 		id,
-	).Scan(&f.ID, &f.ShortCode, &f.OwnerID, &f.Title, &f.Language, &f.Content, &f.CreatedAt, &f.UpdatedAt)
+	).Scan(&f.ID, &f.ShortCode, &f.OwnerID, &f.Title, &f.Language, &f.Content, &f.YjsState, &f.CreatedAt, &f.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -78,9 +78,9 @@ func GetFileByID(ctx context.Context, id int64) (*models.File, error) {
 func GetFileByShortCode(ctx context.Context, shortCode string) (*models.File, error) {
 	f := &models.File{}
 	err := DB.QueryRowContext(ctx,
-		`SELECT id, short_code, owner_id, title, language, content, created_at, updated_at FROM files WHERE short_code = $1`,
+		`SELECT id, short_code, owner_id, title, language, content, yjs_state, created_at, updated_at FROM files WHERE short_code = $1`,
 		shortCode,
-	).Scan(&f.ID, &f.ShortCode, &f.OwnerID, &f.Title, &f.Language, &f.Content, &f.CreatedAt, &f.UpdatedAt)
+	).Scan(&f.ID, &f.ShortCode, &f.OwnerID, &f.Title, &f.Language, &f.Content, &f.YjsState, &f.CreatedAt, &f.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -172,5 +172,10 @@ func GetRoomsByParticipantUserID(ctx context.Context, userID int64) ([]models.Ro
 
 func DeleteFileByShortCode(ctx context.Context, shortCode string) error {
 	_, err := DB.ExecContext(ctx, `DELETE FROM files WHERE short_code = $1`, shortCode)
+	return err
+}
+
+func SaveDoc(ctx context.Context, roomCode string, userID int64, yjsState []byte) error {
+	_, err := DB.ExecContext(ctx, `UPDATE files SET yjs_state = $1, updated_at = NOW() WHERE short_code = $2`, yjsState, roomCode)
 	return err
 }

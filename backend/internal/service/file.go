@@ -114,3 +114,28 @@ func DeleteRoom(ctx context.Context, roomCode string, userID int64) error {
 	}
 	return repository.DeleteFileByShortCode(ctx, roomCode)
 }
+
+func SaveDoc(ctx context.Context, roomCode string, userID int64, yjsState []byte) error {
+	file, err := repository.GetFileByShortCode(ctx, roomCode)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrFileNotFound
+		}
+		return err
+	}
+	if file.OwnerID != userID {
+		return ErrForbidden
+	}
+	return repository.SaveDoc(ctx, roomCode, userID, yjsState)
+}
+
+func GetDoc(ctx context.Context, roomCode string, userID int64) ([]byte, error) {
+	file, err := repository.GetFileByShortCode(ctx, roomCode)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrFileNotFound
+		}
+		return nil, err
+	}
+	return file.YjsState, nil
+}

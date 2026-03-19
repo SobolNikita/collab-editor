@@ -100,6 +100,13 @@ func main() {
 		handler.DeleteRoom(w, r)
 	})
 
+	mux.HandleFunc("GET /api/rooms/{roomName}/doc", func(w http.ResponseWriter, r *http.Request) {
+		handler.GetDoc(w, r)
+	})
+	mux.HandleFunc("PUT /api/rooms/{roomName}/doc", func(w http.ResponseWriter, r *http.Request) {
+		handler.SaveDoc(w, r)
+	})
+
 	handler := enableCORS(mux)
 
 	log.Println("Server is running on :8080")

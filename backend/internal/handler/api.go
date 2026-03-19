@@ -306,3 +306,105 @@ func DeleteRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func SaveDoc(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		respondJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		logError("SaveDoc", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	var body struct {
+		Update []byte `json:"update"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		respondJSONError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	roomCode := r.PathValue("roomName")
+	if roomCode == "" {
+		respondJSONError(w, "missing room code", http.StatusBadRequest)
+		return
+	}
+	userID, err := auth.UserIDFromRequest(r, &cfg)
+	if err != nil {
+		logError("SaveDoc", err)
+		respondJSONError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	userIDInt, err := strconv.ParseInt(userID, 10, 64)
+	if err != nil {
+		logError("SaveDoc", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	err = service.SaveDoc(r.Context(), roomCode, userIDInt, body.Update)
+	if err != nil {
+		if errors.Is(err, service.ErrFileNotFound) {
+			respondJSONError(w, "room not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, service.ErrForbidden) {
+			respondJSONError(w, "only the owner can save the document", http.StatusForbidden)
+			return
+		}
+		logError("SaveDoc", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func GetDoc(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		respondJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	roomCode := r.PathValue("roomName")
+	if roomCode == "" {
+		respondJSONError(w, "missing room code", http.StatusBadRequest)
+		return
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		logError("GetDoc", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	userID, err := auth.UserIDFromRequest(r, &cfg)
+	if err != nil {
+		logError("GetDoc", err)
+		respondJSONError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	userIDInt, err := strconv.ParseInt(userID, 10, 64)
+	if err != nil {
+		logError("GetDoc", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	yjsState, err := service.GetDoc(r.Context(), roomCode, userIDInt)
+	if err != nil {
+		if errors.Is(err, service.ErrFileNotFound) {
+			respondJSONError(w, "room not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, service.ErrForbidden) {
+			respondJSONError(w, "only the owner can get the document", http.StatusForbidden)
+			return
+		}
+		logError("GetDoc", err)
+		respondJSONError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	update := make([]int, len(yjsState))
+	for i, b := range yjsState {
+		update[i] = int(b)
+	}
+	respondJSON(w, http.StatusOK, map[string]interface{}{"update": update})
+}
