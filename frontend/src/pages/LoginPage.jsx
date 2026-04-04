@@ -41,18 +41,18 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface px-4">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-panel p-6 shadow-lg">
-        <h1 className="mb-6 text-center text-lg font-semibold text-slate-100">
-          Sign in
+    <div className="flex min-h-screen items-center justify-center bg-surface px-4 py-10">
+      <div className="w-full max-w-[22rem] rounded-3xl border border-border bg-panel p-8 shadow-card">
+        <h1 className="mb-7 text-center text-xl font-semibold text-zinc-100">
+          Вход
         </h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <p className="rounded bg-red-900/50 px-3 py-2 text-sm text-red-300">
+            <p className="rounded-xl bg-red-500/10 px-4 py-2.5 text-sm text-red-300">
               {error}
             </p>
           )}
-          <label className="block text-xs text-slate-400">
+          <label className="block text-xs font-medium text-zinc-400">
             Email
             <input
               type="email"
@@ -60,48 +60,48 @@ export function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="mt-1 w-full rounded border border-border bg-slate-800 px-3 py-2 text-sm text-slate-100"
+              className="mt-1.5 w-full rounded-xl border border-border bg-surface-elevated px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </label>
-          <label className="block text-xs text-slate-400">
-            Password
+          <label className="block text-xs font-medium text-zinc-400">
+            Пароль
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="current-password"
-              className="mt-1 w-full rounded border border-border bg-slate-800 px-3 py-2 text-sm text-slate-100"
+              className="mt-1.5 w-full rounded-xl border border-border bg-surface-elevated px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </label>
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded bg-slate-600 py-2 text-sm font-medium text-white hover:bg-slate-500 disabled:opacity-50"
-          >
-            {loading ? "Signing in…" : "Sign in"}
+            className="w-full rounded-xl bg-accent py-3 text-sm font-semibold text-white shadow-glow transition hover:bg-accent-hover disabled:opacity-50">
+            {loading ? "Вход…" : "Войти"}
           </button>
         </form>
         {env.apiUrl ? (
-          <div className="mt-4 border-t border-border pt-4">
+          <div className="mt-5 border-t border-border-subtle pt-5">
             <button
               type="button"
               onClick={handleGoogle}
-              className="flex w-full items-center justify-center gap-2 rounded border border-border bg-slate-800 py-2 text-sm text-slate-200 hover:bg-slate-700"
-            >
+              className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-border bg-surface-elevated py-3 text-sm font-medium text-zinc-200 transition hover:bg-panel-hover">
               <GoogleIcon className="h-5 w-5" />
-              Sign in with Google
+              Войти через Google
             </button>
           </div>
         ) : (
-          <p className="mt-4 text-center text-xs text-slate-500">
-            Set VITE_API_URL for Google sign-in
+          <p className="mt-5 text-center text-xs text-zinc-500">
+            Укажите VITE_API_URL для входа через Google
           </p>
         )}
-        <p className="mt-4 text-center text-xs text-slate-400">
-          No account?{" "}
-          <Link to="/register" className="text-slate-200 underline">
-            Register
+        <p className="mt-5 text-center text-sm text-zinc-500">
+          Нет аккаунта?{" "}
+          <Link
+            to="/register"
+            className="font-medium text-accent hover:text-accent-hover">
+            Регистрация
           </Link>
         </p>
       </div>

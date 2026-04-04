@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -109,6 +110,7 @@ func main() {
 
 	handler := enableCORS(mux)
 
-	log.Println("Server is running on :8080")
-	http.ListenAndServe(":8080", handler)
+	addr := fmt.Sprintf(":%s", cfg.Port)
+	log.Printf("Server is running on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, handler))
 }

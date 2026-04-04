@@ -28,8 +28,9 @@ export function AuthCallbackPage() {
   }, [searchParams, navigate, setAuth]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface text-slate-400">
-      Signing you in…
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-surface text-zinc-400">
+      <div className="h-9 w-9 animate-spin rounded-full border-2 border-border border-t-accent" />
+      <p className="text-sm">Вход…</p>
     </div>
   );
 }

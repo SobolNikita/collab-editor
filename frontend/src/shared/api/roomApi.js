@@ -186,8 +186,11 @@ export async function loadDocument(roomName) {
       },
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, error: data.error || `Ошибка ${res.status}` };
-    const update = Array.isArray(data.update) ? new Uint8Array(data.update) : null;
+    if (!res.ok)
+      return { ok: false, error: data.error || `Ошибка ${res.status}` };
+    const update = Array.isArray(data.update)
+      ? new Uint8Array(data.update)
+      : null;
     return { ok: true, update, yjsState: update };
   } catch (err) {
     console.error("Error getting document:", err);

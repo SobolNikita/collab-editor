@@ -39,18 +39,18 @@ export function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface px-4">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-panel p-6 shadow-lg">
-        <h1 className="mb-6 text-center text-lg font-semibold text-slate-100">
-          Create account
+    <div className="flex min-h-screen items-center justify-center bg-surface px-4 py-10">
+      <div className="w-full max-w-[22rem] rounded-3xl border border-border bg-panel p-8 shadow-card">
+        <h1 className="mb-7 text-center text-xl font-semibold text-zinc-100">
+          Регистрация
         </h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <p className="rounded bg-red-900/50 px-3 py-2 text-sm text-red-300">
+            <p className="rounded-xl bg-red-500/10 px-4 py-2.5 text-sm text-red-300">
               {error}
             </p>
           )}
-          <label className="block text-xs text-slate-400">
+          <label className="block text-xs font-medium text-zinc-400">
             Email
             <input
               type="email"
@@ -58,23 +58,23 @@ export function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="mt-1 w-full rounded border border-border bg-slate-800 px-3 py-2 text-sm text-slate-100"
+              className="mt-1.5 w-full rounded-xl border border-border bg-surface-elevated px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </label>
-          <label className="block text-xs text-slate-400">
-            Name
+          <label className="block text-xs font-medium text-zinc-400">
+            Имя
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Display name"
+              placeholder="Как к вам обращаться"
               autoComplete="name"
               maxLength={64}
-              className="mt-1 w-full rounded border border-border bg-slate-800 px-3 py-2 text-sm text-slate-100 placeholder-slate-500"
+              className="mt-1.5 w-full rounded-xl border border-border bg-surface-elevated px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </label>
-          <label className="block text-xs text-slate-400">
-            Password
+          <label className="block text-xs font-medium text-zinc-400">
+            Пароль
             <input
               type="password"
               value={password}
@@ -82,21 +82,22 @@ export function RegisterPage() {
               required
               autoComplete="new-password"
               minLength={6}
-              className="mt-1 w-full rounded border border-border bg-slate-800 px-3 py-2 text-sm text-slate-100"
+              className="mt-1.5 w-full rounded-xl border border-border bg-surface-elevated px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </label>
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded bg-slate-600 py-2 text-sm font-medium text-white hover:bg-slate-500 disabled:opacity-50"
-          >
-            {loading ? "Creating account…" : "Register"}
+            className="w-full rounded-xl bg-accent py-3 text-sm font-semibold text-white shadow-glow transition hover:bg-accent-hover disabled:opacity-50">
+            {loading ? "Создание…" : "Создать аккаунт"}
           </button>
         </form>
-        <p className="mt-4 text-center text-xs text-slate-400">
-          Already have an account?{" "}
-          <Link to="/login" className="text-slate-200 underline">
-            Sign in
+        <p className="mt-5 text-center text-sm text-zinc-500">
+          Уже есть аккаунт?{" "}
+          <Link
+            to="/login"
+            className="font-medium text-accent hover:text-accent-hover">
+            Войти
           </Link>
         </p>
       </div>

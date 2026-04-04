@@ -39,12 +39,12 @@ export function useCollabSession({
   const userColor = myColorFromApi || fallbackColor;
   const yTextRef = useRef(null);
   const ydocRef = useRef(null);
+  const pendingYjsUpdateRef = useRef(null);
   const setSharedLanguageRef = useRef(null);
   const awarenessRef = useRef(null);
   const languageRef = useRef(language);
   const onLanguageChangeFromCollabRef = useRef(onLanguageChangeFromCollab);
-  languageRef.current = language;
-  onLanguageChangeFromCollabRef.current = onLanguageChangeFromCollab;
+  const isRoomOwnerRef = useRef(isRoomOwner);
 
   const userMeta = useMemo(
     () => ({
@@ -55,7 +55,14 @@ export function useCollabSession({
     [username, userColor],
   );
   const userMetaRef = useRef(userMeta);
-  userMetaRef.current = userMeta;
+
+  useEffect(() => {
+    languageRef.current = language;
+    onLanguageChangeFromCollabRef.current = onLanguageChangeFromCollab;
+    isRoomOwnerRef.current = isRoomOwner;
+    userMetaRef.current = userMeta;
+  }, [language, onLanguageChangeFromCollab, isRoomOwner, userMeta]);
+
   useEffect(() => {
     if (!monaco || !editor || !model || !wsUrl || !roomName) {
       return undefined;
@@ -63,6 +70,12 @@ export function useCollabSession({
 
     const ydoc = new Y.Doc();
     ydocRef.current = ydoc;
+
+    const pending = pendingYjsUpdateRef.current;
+    pendingYjsUpdateRef.current = null;
+    if (pending?.length) {
+      Y.applyUpdate(ydoc, pending);
+    }
 
     const yText = ydoc.getText("content");
     const provider = new WebsocketProvider(wsUrl, roomName, ydoc, {
@@ -110,6 +123,10 @@ export function useCollabSession({
       new Set([editor]),
       awareness,
     );
+
+    if (isRoomOwnerRef.current && yText.length === 0 && defaultText) {
+      yText.insert(0, defaultText);
+    }
 
     const onStatus = ({ status }) => {
       if (status === "connected") {
@@ -203,6 +220,7 @@ export function useCollabSession({
     });
 
     return () => {
+      pendingYjsUpdateRef.current = null;
       window.clearTimeout(typingTimer);
       awarenessRef.current = null;
       yMeta.unobserve(observer);
@@ -225,7 +243,7 @@ export function useCollabSession({
       setParticipants([]);
       setConnectionStatus("offline");
     };
-  }, [editor, model, monaco, roomName, token, wsUrl]);
+  }, [defaultText, editor, model, monaco, roomName, token, wsUrl]);
 
   useEffect(() => {
     awarenessRef.current?.setLocalStateField("user", userMeta);
@@ -244,8 +262,13 @@ export function useCollabSession({
   };
 
   const onEditorReady = useCallback((state) => {
-    if (!state?.length || !ydocRef.current) return;
-    Y.applyUpdate(ydocRef.current, state);
+    if (!state?.length) return;
+    const ydoc = ydocRef.current;
+    if (ydoc) {
+      Y.applyUpdate(ydoc, state);
+    } else {
+      pendingYjsUpdateRef.current = state;
+    }
   }, []);
 
   return {

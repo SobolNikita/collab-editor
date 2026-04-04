@@ -183,8 +183,9 @@ export function EditorPage() {
 
   if (accessStatus === "pending") {
     return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center bg-surface text-slate-100">
-        <p className="text-slate-400">
+      <div className="flex h-screen w-screen flex-col items-center justify-center gap-4 bg-surface text-zinc-100">
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-border border-t-accent" />
+        <p className="text-sm text-zinc-400">
           {!roomCode
             ? "Некорректная ссылка на комнату."
             : "Проверка доступа к комнате…"}
@@ -198,7 +199,7 @@ export function EditorPage() {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-surface text-slate-100">
+    <div className="flex h-screen w-screen flex-col bg-surface text-zinc-100">
       <Toolbar
         roomCode={roomCode}
         language={language}

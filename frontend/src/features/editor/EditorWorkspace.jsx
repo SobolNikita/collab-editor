@@ -30,9 +30,10 @@ export const EditorWorkspace = forwardRef(function EditorWorkspace(
   const [editorRef, setEditorRef] = useState(null);
   const [monacoRef, setMonacoRef] = useState(null);
   const [modelRef, setModelRef] = useState(null);
-  const [yjsIsLoading, setYjsIsLoading] = useState(true);
+  const [docLoadedForRoom, setDocLoadedForRoom] = useState(null);
 
   const roomName = roomCodeProp ?? "";
+  const yjsIsLoading = Boolean(roomName) && docLoadedForRoom !== roomName;
 
   const {
     connectionStatus,
@@ -78,31 +79,45 @@ export const EditorWorkspace = forwardRef(function EditorWorkspace(
   }, [connectionStatus, isSynced, onStatusChange, participants, roomName]);
 
   useEffect(() => {
-    setYjsIsLoading(true);
+    if (!roomName) return undefined;
+
+    let cancelled = false;
     loadDocument(roomName)
       .then((data) => {
-        if (data.ok && data.yjsState?.length) onEditorReady(data.yjsState);
+        if (!cancelled && data.ok && data.yjsState?.length) {
+          onEditorReady(data.yjsState);
+        }
       })
       .catch((error) => {
         console.error("Error loading YJS state:", error);
       })
       .finally(() => {
-        setYjsIsLoading(false);
+        if (!cancelled) {
+          setDocLoadedForRoom(roomName);
+        }
       });
-  }, [roomName]);
+    return () => {
+      cancelled = true;
+    };
+  }, [onEditorReady, roomName]);
+
+  const showCollabWarmup =
+    !yjsIsLoading &&
+    !isSynced &&
+    connectionStatus !== "offline";
 
   return yjsIsLoading ? (
-    <div className="h-full w-full bg-surface flex flex-col justify-center items-center gap-6">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-6 bg-surface">
       <div
-        className="animate-spin rounded-full h-10 w-10 border-2 border-slate-600 border-t-emerald-500"
+        className="h-10 w-10 animate-spin rounded-full border-2 border-border border-t-accent"
         aria-hidden
       />
-      <p className="text-slate-400 text-sm font-medium tracking-wide">
+      <p className="text-sm font-medium tracking-wide text-zinc-400">
         Загрузка содержимого…
       </p>
     </div>
   ) : (
-    <div className="h-full w-full bg-surface">
+    <div className="relative h-full w-full bg-surface">
       <Editor
         height="100%"
         language={language}
@@ -123,6 +138,17 @@ export const EditorWorkspace = forwardRef(function EditorWorkspace(
           setModelRef(editor.getModel());
         }}
       />
+      {showCollabWarmup ? (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-surface/85 backdrop-blur-[2px]">
+          <div
+            className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-accent"
+            aria-hidden
+          />
+          <p className="text-sm font-medium text-zinc-400">
+            Синхронизация редактора…
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 });
